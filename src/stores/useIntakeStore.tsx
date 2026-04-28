@@ -70,43 +70,7 @@ interface IntakeStoreState {
   distributeRA: (raId: string) => void
 }
 
-const INITIAL_RAS: IntakeRA[] = [
-  {
-    id: 'ra-001',
-    raNumber: 'RA-2025-8472',
-    clientName: 'Viação ABC Expresso',
-    cnpj: '12.345.678/0001-90',
-    date: new Date().toLocaleDateString(),
-    status: 'pending',
-    validationStatus: 'AGUARDANDO PROCESSAMENTO',
-    source: 'odoo',
-    documents: [
-      {
-        id: 'doc-1',
-        fileName: 'BO_Policial_BR116.pdf',
-        fileType: 'pdf',
-        url: 'https://img.usecurling.com/p/600/800?q=document&color=gray',
-        thumbnailUrl: 'https://img.usecurling.com/p/150/200?q=document&color=gray',
-        uploadDate: new Date().toISOString(),
-      },
-      {
-        id: 'doc-2',
-        fileName: 'Aviso_Sinistro_Interno.pdf',
-        fileType: 'pdf',
-        url: 'https://img.usecurling.com/p/600/800?q=form&color=gray',
-        thumbnailUrl: 'https://img.usecurling.com/p/150/200?q=form&color=gray',
-        uploadDate: new Date().toISOString(),
-      },
-    ],
-    cleanedMockData: [
-      'Removido telefone fictício: (00) 00000-0000',
-      'Removida placa placeholder: ABC1234',
-      'Removido modelo placeholder: FORD / ECOSPORT',
-      'Limpas mensagens de Chatter vazias do Odoo',
-    ],
-    consistencyChecks: [],
-  },
-]
+const INITIAL_RAS: IntakeRA[] = []
 
 const IntakeContext = createContext<IntakeStoreState | null>(null)
 

@@ -104,44 +104,6 @@ export type Database = {
           },
         ]
       }
-      babies: {
-        Row: {
-          created_at: string
-          dob: string
-          height_initial: number
-          id: string
-          name: string
-          user_id: string
-          weight_initial: number
-        }
-        Insert: {
-          created_at?: string
-          dob: string
-          height_initial: number
-          id?: string
-          name: string
-          user_id: string
-          weight_initial: number
-        }
-        Update: {
-          created_at?: string
-          dob?: string
-          height_initial?: number
-          id?: string
-          name?: string
-          user_id?: string
-          weight_initial?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: 'babies_user_id_fkey'
-            columns: ['user_id']
-            isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
-          },
-        ]
-      }
       caixa_entrada: {
         Row: {
           ano_causador: string | null
@@ -606,38 +568,6 @@ export type Database = {
         }
         Relationships: []
       }
-      family_members: {
-        Row: {
-          baby_id: string
-          created_at: string
-          email: string
-          id: string
-          role: string
-        }
-        Insert: {
-          baby_id: string
-          created_at?: string
-          email: string
-          id?: string
-          role: string
-        }
-        Update: {
-          baby_id?: string
-          created_at?: string
-          email?: string
-          id?: string
-          role?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: 'family_members_baby_id_fkey'
-            columns: ['baby_id']
-            isOneToOne: false
-            referencedRelation: 'babies'
-            referencedColumns: ['id']
-          },
-        ]
-      }
       financial_transactions: {
         Row: {
           amount: number
@@ -804,82 +734,6 @@ export type Database = {
           valor?: number | null
         }
         Relationships: []
-      }
-      meals: {
-        Row: {
-          amount_grams: number
-          baby_id: string
-          created_at: string
-          date: string
-          id: string
-          meal_type: string
-          recipe_name: string
-          time: string
-        }
-        Insert: {
-          amount_grams: number
-          baby_id: string
-          created_at?: string
-          date?: string
-          id?: string
-          meal_type: string
-          recipe_name: string
-          time: string
-        }
-        Update: {
-          amount_grams?: number
-          baby_id?: string
-          created_at?: string
-          date?: string
-          id?: string
-          meal_type?: string
-          recipe_name?: string
-          time?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: 'meals_baby_id_fkey'
-            columns: ['baby_id']
-            isOneToOne: false
-            referencedRelation: 'babies'
-            referencedColumns: ['id']
-          },
-        ]
-      }
-      measurements: {
-        Row: {
-          baby_id: string
-          created_at: string
-          date: string
-          height: number
-          id: string
-          weight: number
-        }
-        Insert: {
-          baby_id: string
-          created_at?: string
-          date?: string
-          height: number
-          id?: string
-          weight: number
-        }
-        Update: {
-          baby_id?: string
-          created_at?: string
-          date?: string
-          height?: number
-          id?: string
-          weight?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: 'measurements_baby_id_fkey'
-            columns: ['baby_id']
-            isOneToOne: false
-            referencedRelation: 'babies'
-            referencedColumns: ['id']
-          },
-        ]
       }
       profiles: {
         Row: {
@@ -1111,14 +965,6 @@ export const Constants = {
 //   file_type: text (nullable)
 //   url: text (nullable)
 //   created_at: timestamp with time zone (nullable, default: now())
-// Table: babies
-//   id: uuid (not null, default: gen_random_uuid())
-//   user_id: uuid (not null)
-//   name: text (not null)
-//   dob: date (not null)
-//   weight_initial: numeric (not null)
-//   height_initial: numeric (not null)
-//   created_at: timestamp with time zone (not null, default: now())
 // Table: caixa_entrada
 //   id_ra: text (not null)
 //   cliente_nome: text (nullable)
@@ -1256,12 +1102,6 @@ export const Constants = {
 //   STATUS: text (nullable)
 //   AGÊNCIA: text (nullable)
 //   is_enriched: boolean (nullable, default: false)
-// Table: family_members
-//   id: uuid (not null, default: gen_random_uuid())
-//   baby_id: uuid (not null)
-//   email: text (not null)
-//   role: text (not null)
-//   created_at: timestamp with time zone (not null, default: now())
 // Table: financial_transactions
 //   id: uuid (not null, default: gen_random_uuid())
 //   type: text (not null)
@@ -1305,22 +1145,6 @@ export const Constants = {
 //   data_entrada: timestamp with time zone (nullable)
 //   analista_id: text (nullable)
 //   created_at: timestamp with time zone (nullable, default: now())
-// Table: meals
-//   id: uuid (not null, default: gen_random_uuid())
-//   baby_id: uuid (not null)
-//   meal_type: text (not null)
-//   recipe_name: text (not null)
-//   amount_grams: integer (not null)
-//   time: text (not null)
-//   date: date (not null, default: CURRENT_DATE)
-//   created_at: timestamp with time zone (not null, default: now())
-// Table: measurements
-//   id: uuid (not null, default: gen_random_uuid())
-//   baby_id: uuid (not null)
-//   date: date (not null, default: CURRENT_DATE)
-//   weight: numeric (not null)
-//   height: numeric (not null)
-//   created_at: timestamp with time zone (not null, default: now())
 // Table: profiles
 //   id: uuid (not null)
 //   email: text (not null)
@@ -1347,9 +1171,6 @@ export const Constants = {
 // Table: attachments
 //   FOREIGN KEY attachments_claim_id_fkey: FOREIGN KEY (claim_id) REFERENCES claims(id) ON DELETE CASCADE
 //   PRIMARY KEY attachments_pkey: PRIMARY KEY (id)
-// Table: babies
-//   PRIMARY KEY babies_pkey: PRIMARY KEY (id)
-//   FOREIGN KEY babies_user_id_fkey: FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
 // Table: caixa_entrada
 //   PRIMARY KEY caixa_entrada_pkey: PRIMARY KEY (id_ra)
 // Table: caixa_entrada_importacao
@@ -1362,9 +1183,6 @@ export const Constants = {
 //   UNIQUE claims_ra_date_placa_key: UNIQUE (ra, date, placa_causador)
 // Table: clients
 //   PRIMARY KEY clients_pkey: PRIMARY KEY (id)
-// Table: family_members
-//   FOREIGN KEY family_members_baby_id_fkey: FOREIGN KEY (baby_id) REFERENCES babies(id) ON DELETE CASCADE
-//   PRIMARY KEY family_members_pkey: PRIMARY KEY (id)
 // Table: financial_transactions
 //   FOREIGN KEY financial_transactions_claim_id_fkey: FOREIGN KEY (claim_id) REFERENCES claims(id) ON DELETE SET NULL
 //   PRIMARY KEY financial_transactions_pkey: PRIMARY KEY (id)
@@ -1377,12 +1195,6 @@ export const Constants = {
 //   PRIMARY KEY internal_team_pkey: PRIMARY KEY (id)
 // Table: leads
 //   PRIMARY KEY leads_pkey: PRIMARY KEY (id)
-// Table: meals
-//   FOREIGN KEY meals_baby_id_fkey: FOREIGN KEY (baby_id) REFERENCES babies(id) ON DELETE CASCADE
-//   PRIMARY KEY meals_pkey: PRIMARY KEY (id)
-// Table: measurements
-//   FOREIGN KEY measurements_baby_id_fkey: FOREIGN KEY (baby_id) REFERENCES babies(id) ON DELETE CASCADE
-//   PRIMARY KEY measurements_pkey: PRIMARY KEY (id)
 // Table: profiles
 //   FOREIGN KEY profiles_id_fkey: FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
 //   PRIMARY KEY profiles_pkey: PRIMARY KEY (id)
@@ -1417,15 +1229,6 @@ export const Constants = {
 //   Policy "Public Access Attachments" (ALL, PERMISSIVE) roles={anon}
 //     USING: true
 //     WITH CHECK: true
-// Table: babies
-//   Policy "Users can delete own babies" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (user_id = auth.uid())
-//   Policy "Users can insert own babies" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (user_id = auth.uid())
-//   Policy "Users can read own babies" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: ((user_id = auth.uid()) OR (EXISTS ( SELECT 1    FROM family_members   WHERE ((family_members.baby_id = family_members.id) AND (family_members.email = ( SELECT profiles.email            FROM profiles           WHERE (profiles.id = auth.uid())))))))
-//   Policy "Users can update own babies" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: ((user_id = auth.uid()) OR (EXISTS ( SELECT 1    FROM family_members   WHERE ((family_members.baby_id = family_members.id) AND (family_members.email = ( SELECT profiles.email            FROM profiles           WHERE (profiles.id = auth.uid())))))))
 // Table: caixa_entrada
 //   Policy "auth_all_caixa_entrada" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -1461,13 +1264,6 @@ export const Constants = {
 //   Policy "authenticated_update_clients" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
-// Table: family_members
-//   Policy "Users can delete family members" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (EXISTS ( SELECT 1    FROM babies   WHERE ((babies.id = family_members.baby_id) AND (babies.user_id = auth.uid()))))
-//   Policy "Users can insert family members" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (EXISTS ( SELECT 1    FROM babies   WHERE ((babies.id = family_members.baby_id) AND (babies.user_id = auth.uid()))))
-//   Policy "Users can read family members" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: ((EXISTS ( SELECT 1    FROM babies   WHERE ((babies.id = family_members.baby_id) AND (babies.user_id = auth.uid())))) OR (email = ( SELECT profiles.email    FROM profiles   WHERE (profiles.id = auth.uid()))))
 // Table: financial_transactions
 //   Policy "Authenticated Access Financial" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -1515,24 +1311,6 @@ export const Constants = {
 //   Policy "authenticated_all_leads" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
-// Table: meals
-//   Policy "Users can delete own baby meals" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (EXISTS ( SELECT 1    FROM babies   WHERE ((babies.id = meals.baby_id) AND ((babies.user_id = auth.uid()) OR (EXISTS ( SELECT 1            FROM family_members           WHERE ((family_members.baby_id = babies.id) AND (family_members.email = ( SELECT profiles.email                    FROM profiles                   WHERE (profiles.id = auth.uid()))))))))))
-//   Policy "Users can insert own baby meals" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (EXISTS ( SELECT 1    FROM babies   WHERE ((babies.id = meals.baby_id) AND ((babies.user_id = auth.uid()) OR (EXISTS ( SELECT 1            FROM family_members           WHERE ((family_members.baby_id = babies.id) AND (family_members.email = ( SELECT profiles.email                    FROM profiles                   WHERE (profiles.id = auth.uid()))))))))))
-//   Policy "Users can read own baby meals" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (EXISTS ( SELECT 1    FROM babies   WHERE ((babies.id = meals.baby_id) AND ((babies.user_id = auth.uid()) OR (EXISTS ( SELECT 1            FROM family_members           WHERE ((family_members.baby_id = babies.id) AND (family_members.email = ( SELECT profiles.email                    FROM profiles                   WHERE (profiles.id = auth.uid()))))))))))
-//   Policy "Users can update own baby meals" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (EXISTS ( SELECT 1    FROM babies   WHERE ((babies.id = meals.baby_id) AND ((babies.user_id = auth.uid()) OR (EXISTS ( SELECT 1            FROM family_members           WHERE ((family_members.baby_id = babies.id) AND (family_members.email = ( SELECT profiles.email                    FROM profiles                   WHERE (profiles.id = auth.uid()))))))))))
-// Table: measurements
-//   Policy "Users can delete own baby measurements" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (EXISTS ( SELECT 1    FROM babies   WHERE ((babies.id = measurements.baby_id) AND ((babies.user_id = auth.uid()) OR (EXISTS ( SELECT 1            FROM family_members           WHERE ((family_members.baby_id = babies.id) AND (family_members.email = ( SELECT profiles.email                    FROM profiles                   WHERE (profiles.id = auth.uid()))))))))))
-//   Policy "Users can insert own baby measurements" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (EXISTS ( SELECT 1    FROM babies   WHERE ((babies.id = measurements.baby_id) AND (babies.user_id = auth.uid()))))
-//   Policy "Users can read own baby measurements" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (EXISTS ( SELECT 1    FROM babies   WHERE ((babies.id = measurements.baby_id) AND ((babies.user_id = auth.uid()) OR (EXISTS ( SELECT 1            FROM family_members           WHERE ((family_members.baby_id = babies.id) AND (family_members.email = ( SELECT profiles.email                    FROM profiles                   WHERE (profiles.id = auth.uid()))))))))))
-//   Policy "Users can update own baby measurements" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (EXISTS ( SELECT 1    FROM babies   WHERE ((babies.id = measurements.baby_id) AND ((babies.user_id = auth.uid()) OR (EXISTS ( SELECT 1            FROM family_members           WHERE ((family_members.baby_id = babies.id) AND (family_members.email = ( SELECT profiles.email                    FROM profiles                   WHERE (profiles.id = auth.uid()))))))))))
 // Table: profiles
 //   Policy "Users can read own profile" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = id)
