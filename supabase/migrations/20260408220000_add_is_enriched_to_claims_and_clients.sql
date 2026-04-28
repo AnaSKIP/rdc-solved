@@ -1,0 +1,2 @@
+ALTER TABLE public.claims ADD COLUMN IF NOT EXISTS is_enriched BOOLEAN DEFAULT false;
+ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS is_enriched BOOLEAN DEFAULT false;

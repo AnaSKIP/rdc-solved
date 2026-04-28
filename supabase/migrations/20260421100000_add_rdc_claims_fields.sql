@@ -1,0 +1,12 @@
+ALTER TABLE public.claims
+ADD COLUMN IF NOT EXISTS causer_modelo TEXT,
+ADD COLUMN IF NOT EXISTS causer_ano TEXT,
+ADD COLUMN IF NOT EXISTS causer_whatsapp TEXT,
+ADD COLUMN IF NOT EXISTS causer_endereco TEXT,
+ADD COLUMN IF NOT EXISTS proprietario_veiculo_causador TEXT,
+ADD COLUMN IF NOT EXISTS data_prescricao TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS forma_pagamento TEXT,
+ADD COLUMN IF NOT EXISTS data_ultima_tentativa TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS proxima_tentativa_repescagem TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS motivo_finalizacao TEXT,
+ADD COLUMN IF NOT EXISTS data_finalizacao TIMESTAMPTZ;

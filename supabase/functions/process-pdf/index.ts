@@ -1,0 +1,99 @@
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
+import { createClient } from 'npm:@supabase/supabase-js@2'
+import pdf from 'npm:pdf-parse@1.1.1'
+import { Buffer } from 'node:buffer'
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers':
+    'authorization, x-client-info, x-supabase-client-platform, apikey, content-type',
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+
+  try {
+    const { fileUrl } = await req.json()
+    if (!fileUrl) throw new Error('fileUrl is required')
+
+    console.log('Fetching PDF from URL:', fileUrl)
+    const fileRes = await fetch(fileUrl)
+    if (!fileRes.ok) throw new Error('Failed to fetch PDF file')
+
+    const arrayBuffer = await fileRes.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+
+    console.log('Parsing PDF sem alucinação...')
+    const pdfData = await pdf(buffer)
+    const text = pdfData.text || ''
+    console.log('Extracted Text snippet:', text.substring(0, 300))
+
+    const extractField = (patterns: RegExp[]) => {
+      for (const regex of patterns) {
+        const match = text.match(regex)
+        if (match && match[1]) {
+          return match[1].trim().replace(/\s+/g, ' ')
+        }
+      }
+      return null
+    }
+
+    const cliente = extractField([
+      /(?:Empresa|Cliente|Segurado|Viação|Transportadora)[\s:-]+([^\n\r]{3,50})/i,
+    ])
+
+    const placaOnibus = extractField([
+      /(?:Placa do Ônibus|Placa do Veículo|Placa Cliente|Placa Segurado)[\s:-]+([A-Z0-9-]{7,8})/i,
+      /Veículo Cliente.*?([A-Z]{3}-?[0-9][A-Z0-9][0-9]{2})/i,
+    ])
+
+    const prefixo = extractField([/(?:Prefixo|Nº do Ônibus|Carro|Frota)[\s:-]+([A-Z0-9-]{3,10})/i])
+
+    const causerName = extractField([
+      /(?:Nome do Causador|Causador|Terceiro|Motorista Causador|Nome Terceiro|Condutor Terceiro)[\s:-]+([^\n\r]{3,50})/i,
+    ])
+
+    const placaCausador = extractField([
+      /(?:Placa do Causador|Placa Terceiro|Placa do Veículo Causador)[\s:-]+([A-Z0-9-]{7,8})/i,
+      /Veículo Terceiro.*?([A-Z]{3}-?[0-9][A-Z0-9][0-9]{2})/i,
+    ])
+
+    const marcaModelo = extractField([
+      /(?:Marca\/Modelo|Veículo Causador|Veículo Terceiro|Modelo Terceiro)[\s:-]+([^\n\r]{3,50})/i,
+    ])
+
+    // Tentativa de extrair dinâmica com multiline
+    const dinamicaMatch = text.match(
+      /(?:Dinâmica do Acidente|Relato do Acidente|Histórico|Descrição|Dinâmica|Resumo do Evento)[\s:-]+([\s\S]{10,1000}?)(?=\n[A-Z][a-zÀ-ÿ]+[\s:-]|\n\n|$)/i,
+    )
+    let dinamica = dinamicaMatch ? dinamicaMatch[1].trim() : null
+
+    // Limpar quebras de linha excessivas
+    if (dinamica) {
+      dinamica = dinamica.replace(/\s+/g, ' ')
+    }
+
+    const extracted = {
+      cliente,
+      placaOnibus: placaOnibus ? placaOnibus.replace('-', '') : null,
+      prefixo,
+      causerName,
+      placaCausador: placaCausador ? placaCausador.replace('-', '') : null,
+      marcaModelo,
+      dinamica,
+    }
+
+    console.log('Successfully extracted fields:', extracted)
+
+    return new Response(JSON.stringify({ success: true, extracted }), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    })
+  } catch (err: any) {
+    console.error('Edge Function Error:', err.message)
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    })
+  }
+})
