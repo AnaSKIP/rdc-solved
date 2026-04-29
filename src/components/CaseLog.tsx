@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { AIAssistantNote } from './AIAssistantNote'
 import { WhatsAppChat } from './WhatsAppChat'
 import { EmailOutreachPanel } from './EmailOutreachPanel'
 import { DirectEmailPanel } from './DirectEmailPanel'
@@ -165,92 +164,40 @@ export function CaseLog() {
         <div className="flex-1 overflow-y-auto bg-gray-50/30 scrollbar-thin">
           <TabsContent value="notas" className="m-0 space-y-6 animate-fade-in p-4">
             {/* Dynamic Activities Timeline */}
-            {claimActivities.map((act) => (
-              <div key={act.id} className="flex gap-3">
-                <Avatar
-                  className={`h-8 w-8 shrink-0 mt-1 shadow-sm flex items-center justify-center ${getActivityAvatarClass(
-                    act.type,
-                  )}`}
-                >
-                  {getActivityIcon(act.type)}
-                </Avatar>
-                <div className="flex-1">
-                  <div className="flex items-baseline gap-2 mb-1">
-                    <span className="font-semibold text-sm text-gray-900 uppercase">
-                      {act.type === 'system' ? 'Sistema' : safeAnalystName}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {new Date(act.date).toLocaleString('pt-BR')}
-                    </span>
+            {claimActivities.length === 0 ? (
+              <div className="flex flex-col items-center justify-center p-8 text-gray-400 border border-dashed border-gray-200 rounded-md bg-white">
+                <Clock className="w-8 h-8 mb-2 opacity-20" />
+                <p className="text-sm font-medium">Nenhum registro no histórico.</p>
+                <p className="text-xs text-center mt-1">
+                  As atividades reais deste processo aparecerão aqui.
+                </p>
+              </div>
+            ) : (
+              claimActivities.map((act) => (
+                <div key={act.id} className="flex gap-3">
+                  <Avatar
+                    className={`h-8 w-8 shrink-0 mt-1 shadow-sm flex items-center justify-center ${getActivityAvatarClass(
+                      act.type,
+                    )}`}
+                  >
+                    {getActivityIcon(act.type)}
+                  </Avatar>
+                  <div className="flex-1">
+                    <div className="flex items-baseline gap-2 mb-1">
+                      <span className="font-semibold text-sm text-gray-900 uppercase">
+                        {act.type === 'system' ? 'Sistema' : safeAnalystName}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {new Date(act.date).toLocaleString('pt-BR')}
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-800 bg-white p-3 rounded border border-gray-200 shadow-sm whitespace-pre-wrap">
+                      {act.text}
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-800 bg-white p-3 rounded border border-gray-200 shadow-sm whitespace-pre-wrap">
-                    {act.text}
-                  </div>
                 </div>
-              </div>
-            ))}
-
-            {/* Static Example Timeline Item 1 */}
-            <div className="flex gap-3">
-              <Avatar className="h-8 w-8 bg-purple-600 text-white shrink-0 mt-1">
-                <AvatarFallback>{fallbackInitial}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <div className="flex items-baseline gap-2 mb-1">
-                  <span className="font-semibold text-sm text-gray-900 uppercase">
-                    {safeAnalystName}
-                  </span>
-                  <span className="text-xs text-gray-500">12 de nov. de 2025, 09:43</span>
-                </div>
-                <div className="text-sm text-gray-800 bg-white p-3 rounded border border-gray-200 shadow-sm">
-                  Cobrei retorno referente à vistoria de constatação.
-                </div>
-              </div>
-            </div>
-
-            {/* AI Assistant Notes */}
-            <div className="flex gap-3 relative">
-              <div className="absolute left-4 top-10 bottom-0 w-[2px] bg-yellow-200 -z-10"></div>
-              <Avatar className="h-8 w-8 bg-yellow-500 text-white shrink-0 mt-1 shadow-sm">
-                <AvatarFallback>A</AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <div className="flex items-baseline gap-2 mb-2">
-                  <span className="font-semibold text-sm text-gray-900">Asisto (IA)</span>
-                  <span className="text-xs text-gray-500">10 de nov. de 2025, 10:26</span>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="text-sm text-gray-800 bg-yellow-50/50 p-3 rounded border border-yellow-100 shadow-sm leading-relaxed">
-                    <span className="text-gray-400 text-xs block mb-1 font-mono">
-                      &lt;!-- SOLVED_NOTE:triagem:3279-24346-2025 --&gt;
-                    </span>
-                    Realizamos a triagem inicial do sinistro. Veículo causador identificado via
-                    placa PZK0H01 (FORD/ECOSPORT SE AT 2.0B). Proprietário e Causador localizados
-                    nas bases SCI e INFOCAR com contatos vinculados.
-                  </div>
-
-                  <AIAssistantNote />
-                </div>
-              </div>
-            </div>
-
-            {/* Status Change Note */}
-            <div className="flex gap-3 opacity-70">
-              <Avatar className="h-8 w-8 bg-gray-800 text-white shrink-0 mt-1">
-                <AvatarFallback>O</AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <div className="flex items-baseline gap-2 mb-1">
-                  <span className="font-semibold text-sm text-gray-900">OdooBot</span>
-                  <span className="text-xs text-gray-500">10 de nov. de 2025, 10:17</span>
-                </div>
-                <div className="text-sm text-gray-600">
-                  Estágio alterado <br />
-                  <span className="line-through">ATRIBUIR</span> → <strong>ATRIBUÍDO</strong>
-                </div>
-              </div>
-            </div>
+              ))
+            )}
           </TabsContent>
 
           <TabsContent value="email" className="m-0 h-full animate-fade-in">

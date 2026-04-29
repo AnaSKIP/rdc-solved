@@ -60,6 +60,11 @@ Deno.serve(async (req: Request) => {
 
       const status = extractField([/(?:Status|Fase|Situação|Andamento)[\s:-]+([^\n\r]{3,30})/i])
 
+      const dinamicaMatch = text.match(
+        /(?:Dinâmica do Acidente|Relato do Acidente|Histórico|Descrição|Dinâmica|Resumo do Evento)[\s:-]+([\s\S]{10,2000}?)(?=\n[A-Z][a-zÀ-ÿ]+[\s:-]|\n\n\n|$)/i,
+      )
+      const dinamica = dinamicaMatch ? dinamicaMatch[1].trim().replace(/\s+/g, ' ') : null
+
       let dataEntrada = null
       const dataStr = extractField([
         /(?:Data(?: do)?(?: Sinistro| Acidente| Evento| Aviso| Entrada)|Criado em)[\s:-]+(\d{2}\/\d{2}\/\d{4})/i,
@@ -92,6 +97,7 @@ Deno.serve(async (req: Request) => {
         status: status || null,
         data_entrada: dataEntrada || null,
         analista_id: analistaId || null,
+        dinamica_acidente: dinamica || null,
       }
 
       console.log('Payload extraído do PDF:', payload)

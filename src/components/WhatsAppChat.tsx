@@ -141,19 +141,11 @@ export function WhatsAppChat() {
   }
 
   const handleAnalyzeAudio = () => {
-    setIsAnalyzing(true)
-    setTimeout(() => {
-      setIaResult({
-        transcription:
-          'Eu até entendo que bati no poste, mas o valor que vocês estão cobrando de 15 mil reais é um absurdo, eu não tenho condição de pagar isso tudo de uma vez. Posso ver se consigo arrumar uns 5 mil, mas mais que isso não dá.',
-        objectionType: 'Contestação de Valor / Falta de Condição',
-        difficulty: 'Difícil',
-        suggestedResponse:
-          'Entendemos a sua situação. Nosso objetivo não é inviabilizar o acerto. O valor reflete os custos exatos da concessionária, mas temos autonomia para avaliar um parcelamento flexível desse valor total ou acionar o seguro, caso possua. Qual seria uma parcela viável para o senhor hoje?',
-      })
-      setIsAnalyzing(false)
-      toast({ title: 'Áudio analisado pela IA', className: 'bg-green-50' })
-    }, 2000)
+    toast({
+      title: 'Funcionalidade em desenvolvimento',
+      description: 'A análise real de áudios será ativada na próxima atualização da IA.',
+      variant: 'default',
+    })
   }
 
   const handleSaveToKnowledgeBase = async () => {
@@ -316,52 +308,6 @@ export function WhatsAppChat() {
               Analisar Último Áudio
             </Button>
           </div>
-
-          {iaResult && (
-            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
-              <div className="bg-gray-50 border border-gray-200 p-3 rounded-md">
-                <Label className="text-[10px] text-gray-500 font-bold uppercase mb-1 block">
-                  Texto Transcrito
-                </Label>
-                <p className="text-sm text-gray-800 italic">"{iaResult.transcription}"</p>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-orange-50 border border-orange-200 p-3 rounded-md flex flex-col gap-1">
-                  <Label className="text-[10px] text-orange-600 font-bold uppercase">
-                    Objeção Detectada
-                  </Label>
-                  <span className="text-sm font-semibold text-orange-900">
-                    {iaResult.objectionType}
-                  </span>
-                </div>
-                <div className="bg-red-50 border border-red-200 p-3 rounded-md flex flex-col gap-1 items-start">
-                  <Label className="text-[10px] text-red-600 font-bold uppercase flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3" /> Dificuldade
-                  </Label>
-                  <Badge variant="destructive" className="bg-red-600 shadow-sm">
-                    {iaResult.difficulty}
-                  </Badge>
-                </div>
-              </div>
-              <div className="bg-green-50 border border-green-200 p-3 rounded-md">
-                <Label className="text-[10px] text-green-700 font-bold uppercase mb-1 block flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" /> Sugestão de Resposta (Base)
-                </Label>
-                <p className="text-sm text-green-900 font-medium">{iaResult.suggestedResponse}</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-3 w-full bg-white border-green-300 text-green-700 hover:bg-green-100"
-                  onClick={() => {
-                    setMessage(iaResult.suggestedResponse)
-                    setActiveTab('chat')
-                  }}
-                >
-                  Usar esta Resposta
-                </Button>
-              </div>
-            </div>
-          )}
         </TabsContent>
 
         <TabsContent

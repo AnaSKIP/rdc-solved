@@ -15,6 +15,8 @@ import useCaseStore, { PIPELINE_STAGES, PipelineStage } from '@/stores/useCaseSt
 import useKanbanStore, { KanbanClaim } from '@/stores/useKanbanStore'
 import { useToast } from '@/hooks/use-toast'
 import { simulateOCR } from '@/services/external'
+import { PasswordConfirmModal } from '@/components/PasswordConfirmModal'
+import { supabase } from '@/lib/supabase/client'
 
 export function CaseHeader() {
   const [isEnriching, setIsEnriching] = useState(false)
@@ -35,6 +37,8 @@ export function CaseHeader() {
 
   const { claims, selectedClaim, setSelectedClaim, moveClaim, analystFilter, updateClaim } =
     useKanbanStore()
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
   const currentIndexStage = PIPELINE_STAGES.indexOf(pipelineStage)
   const isFirstStage = currentIndexStage <= 0
@@ -116,6 +120,19 @@ export function CaseHeader() {
     }
   }
 
+  const handleDiscard = async () => {
+    if (!selectedClaim) return
+    const { error } = await supabase.from('claims').delete().eq('id', selectedClaim.id)
+    if (error) {
+      toast({ title: 'Erro ao descartar', description: error.message, variant: 'destructive' })
+    } else {
+      toast({ title: 'Sucesso', description: 'Sinistro descartado com sucesso.' })
+      setSelectedClaim(null)
+      useKanbanStore.getState().refreshClaims()
+    }
+    setIsDeleteModalOpen(false)
+  }
+
   return (
     <div className="bg-white border-b px-4 py-3 space-y-3 sticky top-0 z-40 shadow-sm flex-none">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
@@ -179,7 +196,8 @@ export function CaseHeader() {
           <Button
             size="sm"
             variant="outline"
-            className="h-8 shadow-sm border-gray-300 text-gray-700"
+            className="h-8 shadow-sm border-gray-300 text-gray-700 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+            onClick={() => setIsDeleteModalOpen(true)}
           >
             Descartar
           </Button>
@@ -242,6 +260,14 @@ export function CaseHeader() {
           </Button>
         </div>
       </div>
+
+      <PasswordConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDiscard}
+        title="Descartar Sinistro"
+        description="Esta ação é irreversível. O sinistro e todos os seus anexos serão excluídos. Por favor, confirme sua senha para autorizar."
+      />
     </div>
   )
 }

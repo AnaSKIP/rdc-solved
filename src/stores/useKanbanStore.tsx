@@ -119,9 +119,16 @@ export const KanbanProvider = ({ children }: { children: React.ReactNode }) => {
               contacts.find((c) => c?.id === d?.analyst_id?.toString())?.name?.toString() ||
               d?.analyst_id?.toString() ||
               'Não Atribuído',
-            stage: (d?.status?.toString() === 'Repescagem' || d?.stage?.toString() === 'Repescagem'
-              ? 'Repescagem'
-              : d?.stage?.toString() || 'Atribuir') as PipelineStage,
+            stage: (() => {
+              let rawStage = d?.stage?.toString() || 'Atribuir'
+              if (d?.status?.toString() === 'Repescagem' || rawStage === 'Repescagem') {
+                rawStage = 'Repescagem'
+              }
+              const matchedStage = PIPELINE_STAGES.find(
+                (s) => s.toLowerCase() === rawStage.toLowerCase(),
+              )
+              return (matchedStage || 'Atribuir') as PipelineStage
+            })(),
             placaCausador: d?.placa_causador?.toString() || null,
             dinamicaAcidente: d?.relato_acidente?.toString() || null,
             date: new Date(d?.date || d?.created_at || new Date()).toLocaleDateString('pt-BR'),
@@ -184,6 +191,9 @@ export const KanbanProvider = ({ children }: { children: React.ReactNode }) => {
     const channel = supabase
       .channel('claims_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'claims' }, () =>
+        refreshClaims(),
+      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attachments' }, () =>
         refreshClaims(),
       )
       .subscribe()

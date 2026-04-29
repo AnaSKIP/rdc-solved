@@ -63,9 +63,9 @@ Deno.serve(async (req: Request) => {
       /(?:Marca\/Modelo|Veículo Causador|Veículo Terceiro|Modelo Terceiro)[\s:-]+([^\n\r]{3,50})/i,
     ])
 
-    // Tentativa de extrair dinâmica com multiline
+    // Tentativa de extrair dinâmica com multiline de forma mais permissiva
     const dinamicaMatch = text.match(
-      /(?:Dinâmica do Acidente|Relato do Acidente|Histórico|Descrição|Dinâmica|Resumo do Evento)[\s:-]+([\s\S]{10,1000}?)(?=\n[A-Z][a-zÀ-ÿ]+[\s:-]|\n\n|$)/i,
+      /(?:Dinâmica do Acidente|Relato do Acidente|Histórico|Descrição|Dinâmica|Resumo do Evento)[\s:-]+([\s\S]{10,2000}?)(?=\n[A-Z][a-zÀ-ÿ]+[\s:-]|\n\n\n|$)/i,
     )
     let dinamica = dinamicaMatch ? dinamicaMatch[1].trim() : null
 
