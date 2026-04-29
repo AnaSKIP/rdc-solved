@@ -739,6 +739,7 @@ export type Database = {
         Row: {
           created_at: string
           email: string
+          force_password_change: boolean | null
           id: string
           is_admin: boolean | null
           name: string | null
@@ -746,6 +747,7 @@ export type Database = {
         Insert: {
           created_at?: string
           email: string
+          force_password_change?: boolean | null
           id: string
           is_admin?: boolean | null
           name?: string | null
@@ -753,6 +755,7 @@ export type Database = {
         Update: {
           created_at?: string
           email?: string
+          force_password_change?: boolean | null
           id?: string
           is_admin?: boolean | null
           name?: string | null
@@ -1118,6 +1121,7 @@ export const Constants = {
 //   name: text (nullable)
 //   created_at: timestamp with time zone (not null, default: now())
 //   is_admin: boolean (nullable, default: false)
+//   force_password_change: boolean (nullable, default: false)
 
 // --- CONSTRAINTS ---
 // Table: CASOS DIFICEIS
