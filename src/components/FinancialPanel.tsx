@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { PasswordConfirmModal } from '@/components/PasswordConfirmModal'
 import { Button } from '@/components/ui/button'
 import { DollarSign, Plus, Trash2, Percent, Table as TableIcon } from 'lucide-react'
 import {
@@ -34,6 +35,12 @@ export function FinancialPanel() {
   )
   const [probability, setProbability] = useState(selectedClaim?.probability || 0)
   const [installments, setInstallments] = useState<any[]>(selectedClaim?.installments || [])
+  const [deleteData, setDeleteData] = useState<{
+    type: 'installment' | 'field'
+    id?: string
+    field?: string
+    val?: any
+  } | null>(null)
 
   useEffect(() => {
     setTotalValue(selectedClaim?.financialTotalValue || 0)
@@ -68,9 +75,21 @@ export function FinancialPanel() {
   }
 
   const removeInstallment = (id: string) => {
-    const newInstallments = installments.filter((i) => i.id !== id)
-    setInstallments(newInstallments)
-    handleSave({ installments: newInstallments }, 'Parcela removida')
+    setDeleteData({ type: 'installment', id })
+  }
+
+  const handleConfirmDelete = () => {
+    if (!deleteData) return
+
+    if (deleteData.type === 'installment' && deleteData.id) {
+      const newInstallments = installments.filter((i) => i.id !== deleteData.id)
+      setInstallments(newInstallments)
+      handleSave({ installments: newInstallments }, 'Parcela removida')
+    } else if (deleteData.type === 'field' && deleteData.field) {
+      handleSave({ [deleteData.field]: deleteData.val })
+    }
+
+    setDeleteData(null)
   }
 
   const updateInstallment = (id: string, field: string, value: any) => {
@@ -89,6 +108,13 @@ export function FinancialPanel() {
 
   return (
     <div className="bg-emerald-50/30 p-5 rounded-md border border-emerald-100 mt-6 shadow-sm animate-in fade-in duration-300">
+      <PasswordConfirmModal
+        isOpen={!!deleteData}
+        onClose={() => setDeleteData(null)}
+        onConfirm={handleConfirmDelete}
+        title="Confirmar Alteração Financeira"
+        description="Você está tentando alterar ou remover um registro financeiro. Por favor, informe sua senha para autorizar esta operação."
+      />
       <div className="flex items-center gap-2 mb-5 border-b border-emerald-100 pb-2">
         <DollarSign className="w-5 h-5 text-emerald-600" />
         <h3 className="font-bold text-emerald-900 uppercase text-sm tracking-wider">

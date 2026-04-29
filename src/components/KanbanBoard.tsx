@@ -30,9 +30,11 @@ import {
   X,
   Check,
   Plus,
+  Trash2,
 } from 'lucide-react'
 import { FilePreviewModal } from '@/components/FilePreviewModal'
 import { AddClaimModal } from '@/components/AddClaimModal'
+import { PasswordConfirmModal } from '@/components/PasswordConfirmModal'
 import { getTagStyle, AVAILABLE_TAGS } from '@/components/CaseTags'
 import useKanbanStore, { KanbanClaim } from '@/stores/useKanbanStore'
 import useCaseStore, { PIPELINE_STAGES, PipelineStage } from '@/stores/useCaseStore'
@@ -82,6 +84,7 @@ export function KanbanBoard() {
   } | null>(null)
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [claimToDelete, setClaimToDelete] = useState<string | null>(null)
 
   const topScrollRef = useRef<HTMLDivElement>(null)
   const boardScrollRef = useRef<HTMLDivElement>(null)
@@ -237,6 +240,18 @@ export function KanbanBoard() {
       }
       moveClaim(claimId, stage)
     }
+  }
+
+  const handleDeleteClaimConfirm = async () => {
+    if (!claimToDelete) return
+    const { error } = await supabase.from('claims').delete().eq('id', claimToDelete)
+    if (error) {
+      toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' })
+    } else {
+      toast({ title: 'Sucesso', description: 'Lead excluído com sucesso.' })
+      useKanbanStore.getState().refreshClaims()
+    }
+    setClaimToDelete(null)
   }
 
   return (
@@ -510,7 +525,7 @@ export function KanbanBoard() {
                                   {createdDate.toLocaleDateString('pt-BR')}
                                 </span>
                               </div>
-                              <div className="flex flex-col items-end gap-1">
+                              <div className="flex flex-col items-end gap-1 relative">
                                 <span
                                   className={cn(
                                     'text-[9px] font-bold px-1.5 py-0.5 rounded-sm border shadow-sm',
@@ -524,6 +539,17 @@ export function KanbanBoard() {
                                 >
                                   {daysOpen} {daysOpen === 1 ? 'dia' : 'dias'}
                                 </span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-5 w-5 text-gray-400 hover:text-red-600 hover:bg-red-50 absolute -bottom-6 right-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setClaimToDelete(claim.id.toString())
+                                  }}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
                               </div>
                             </div>
                             <h4
@@ -653,6 +679,13 @@ export function KanbanBoard() {
         fileType={previewFile?.type || ''}
       />
       <AddClaimModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
+      <PasswordConfirmModal
+        isOpen={!!claimToDelete}
+        onClose={() => setClaimToDelete(null)}
+        onConfirm={handleDeleteClaimConfirm}
+        title="Excluir Lead"
+        description="Esta ação é irreversível e removerá o lead e todos os seus anexos. Por favor, confirme sua senha para autorizar."
+      />
     </div>
   )
 }

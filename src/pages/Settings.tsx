@@ -24,6 +24,7 @@ import { useToast } from '@/hooks/use-toast'
 import useOdooImportStore from '@/stores/useOdooImportStore'
 import usePermissionsStore, { ROLES, ModuleId } from '@/stores/usePermissionsStore'
 import { useAuth } from '@/hooks/use-auth'
+import { supabase } from '@/lib/supabase/client'
 import {
   CheckCircle2,
   Loader2,
@@ -41,6 +42,7 @@ import {
   Terminal,
   LogOut,
   UserCircle,
+  KeyRound,
 } from 'lucide-react'
 
 const MODULE_DEFINITIONS = [
@@ -69,6 +71,48 @@ export default function Settings() {
   const [apiKey, setApiKey] = useState(credentials?.apiKey || '')
   const [isTesting, setIsTesting] = useState(false)
   const [testSuccess, setTestSuccess] = useState<boolean | null>(null)
+  const [profiles, setProfiles] = useState<any[]>([])
+  const [loadingProfiles, setLoadingProfiles] = useState(false)
+
+  const loadProfiles = async () => {
+    if (!user?.id || !permissions['Admin']) return
+    setLoadingProfiles(true)
+    const { data } = await supabase.from('profiles').select('*').order('name')
+    if (data) setProfiles(data)
+    setLoadingProfiles(false)
+  }
+
+  useEffect(() => {
+    loadProfiles()
+  }, [user])
+
+  const handleResetPassword = async (userId: string, userName: string) => {
+    if (
+      !confirm(
+        `Deseja realmente resetar a senha de ${userName} para "Password1234!"? O usuário será forçado a trocar no próximo login.`,
+      )
+    )
+      return
+
+    toast({ title: 'Resetando senha...', description: 'Aguarde um momento.' })
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-reset-password', {
+        body: { userId, newPassword: 'Password1234!', forceChange: true },
+      })
+
+      if (error) throw error
+      if (data?.error) throw new Error(data.error)
+
+      toast({
+        title: 'Senha Resetada',
+        description: `A senha de ${userName} foi redefinida com sucesso.`,
+        className: 'bg-green-50 border-green-200',
+      })
+      loadProfiles()
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
+    }
+  }
 
   const handleSaveOdoo = () => {
     if (!url || !db || !username || !apiKey) {
@@ -148,6 +192,12 @@ export default function Settings() {
                 Permissões e Acessos
               </TabsTrigger>
               <TabsTrigger
+                value="usuarios"
+                className="data-[state=active]:bg-gray-100 data-[state=active]:text-solved data-[state=active]:shadow-none h-9 px-6 rounded-md text-gray-600 font-medium whitespace-nowrap"
+              >
+                Gestão de Equipe
+              </TabsTrigger>
+              <TabsTrigger
                 value="integracoes"
                 className="data-[state=active]:bg-gray-100 data-[state=active]:text-solved data-[state=active]:shadow-none h-9 px-6 rounded-md text-gray-600 font-medium whitespace-nowrap"
               >
@@ -190,6 +240,86 @@ export default function Settings() {
                     Encerrar Sessão Segura
                   </Button>
                 </CardFooter>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="usuarios" className="animate-in fade-in duration-300">
+              <Card className="shadow-sm border-gray-200">
+                <CardHeader className="bg-gray-50/50 border-b border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-5 h-5 text-solved" />
+                    <CardTitle className="text-lg">Gestão de Equipe (Administrador)</CardTitle>
+                  </div>
+                  <CardDescription>
+                    Visualize a lista de usuários, gerencie níveis de acesso e redefina senhas em
+                    caso de esquecimento.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-50 border-b-gray-200">
+                        <TableHead className="font-bold text-gray-700 uppercase text-xs">
+                          Nome / E-mail
+                        </TableHead>
+                        <TableHead className="font-bold text-gray-700 uppercase text-xs">
+                          Perfil
+                        </TableHead>
+                        <TableHead className="font-bold text-gray-700 uppercase text-xs">
+                          Status
+                        </TableHead>
+                        <TableHead className="font-bold text-gray-700 uppercase text-xs text-right">
+                          Ações
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {loadingProfiles ? (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center py-8">
+                            <Loader2 className="w-6 h-6 animate-spin text-solved mx-auto" />
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        profiles.map((p) => (
+                          <TableRow key={p.id}>
+                            <TableCell>
+                              <p className="font-medium text-gray-900">{p.name || 'Sem nome'}</p>
+                              <p className="text-xs text-gray-500">{p.email}</p>
+                            </TableCell>
+                            <TableCell>
+                              <span
+                                className={`px-2 py-1 rounded-full text-[10px] font-bold ${p.is_admin ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}
+                              >
+                                {p.is_admin ? 'Administrador' : 'Analista'}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              {p.force_password_change ? (
+                                <span className="text-xs text-orange-600 font-medium">
+                                  Troca pendente
+                                </span>
+                              ) : (
+                                <span className="text-xs text-green-600 font-medium">Ativo</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleResetPassword(p.id, p.name || p.email)}
+                                className="gap-2 text-xs h-8"
+                              >
+                                <KeyRound className="w-3.5 h-3.5" />
+                                Resetar Senha
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
               </Card>
             </TabsContent>
 

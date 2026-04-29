@@ -7,6 +7,7 @@ interface UserProfile {
   email: string
   name: string | null
   is_admin: boolean | null
+  force_password_change: boolean | null
 }
 
 interface AuthContextType {
