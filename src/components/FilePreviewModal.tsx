@@ -34,9 +34,13 @@ export function FilePreviewModal({
           </DialogDescription>
         </DialogHeader>
         <div className="flex-1 w-full bg-gray-100 rounded-md overflow-hidden flex items-center justify-center border border-gray-200 shadow-inner">
-          {fileType === 'pdf' ? (
+          {fileType === 'pdf' ||
+          fileType.includes('pdf') ||
+          fileName?.toLowerCase().endsWith('.pdf') ? (
             <iframe src={fileUrl} className="w-full h-full border-none" title={fileName} />
-          ) : fileType === 'image' || fileType.includes('image') ? (
+          ) : fileType === 'image' ||
+            fileType.includes('image') ||
+            fileName?.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)$/) ? (
             <img src={fileUrl} alt={fileName} className="max-w-full max-h-full object-contain" />
           ) : fileType === 'audio' || fileType.includes('audio') ? (
             <audio controls src={fileUrl} className="w-full max-w-md" />

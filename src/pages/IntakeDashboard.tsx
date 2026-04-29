@@ -121,9 +121,44 @@ export default function IntakeDashboard() {
           }
         })
 
-        await supabase
+        const { data: insertedClaims } = await supabase
           .from('claims')
           .upsert(claimsToInsert, { onConflict: 'ra,date,placa_causador', ignoreDuplicates: true })
+          .select('id, ra')
+
+        if (insertedClaims && insertedClaims.length > 0) {
+          const attachmentsToInsert: any[] = []
+
+          for (const lead of batch) {
+            const claim = insertedClaims.find((c) => c.ra === lead.id_ra)
+            if (claim && lead.documentos_anexados && Array.isArray(lead.documentos_anexados)) {
+              lead.documentos_anexados.forEach((doc: any) => {
+                const url = doc.url || doc.url_arquivo || doc.link || doc.fileUrl
+                const name =
+                  doc.nome || doc.nome_arquivo || doc.file_name || doc.name || 'Documento'
+                const type =
+                  doc.tipo ||
+                  doc.tipo_arquivo ||
+                  doc.file_type ||
+                  doc.type ||
+                  (name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'file')
+
+                if (url) {
+                  attachmentsToInsert.push({
+                    claim_id: claim.id,
+                    url: url,
+                    file_name: name,
+                    file_type: type,
+                  })
+                }
+              })
+            }
+          }
+
+          if (attachmentsToInsert.length > 0) {
+            await supabase.from('attachments').insert(attachmentsToInsert)
+          }
+        }
 
         currentProcessed += batch.length
         setProcessedCount(currentProcessed)

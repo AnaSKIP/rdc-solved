@@ -20,41 +20,4 @@ export const fetchCNPJ = async (cnpj: string) => {
   }
 }
 
-export const simulateOCR = async (fileUrl: string) => {
-  return new Promise<{
-    placa_causador: string
-    tipo_veiculo_causador: string
-    nome_causador: string
-    relato_acidente: string
-    placa_onibus: string
-    prefixo_onibus: string
-  }>((resolve) => {
-    setTimeout(() => {
-      resolve({
-        placa_causador: 'ABC-1234',
-        tipo_veiculo_causador: 'Carro Passeio',
-        nome_causador: 'Fernando Fambri',
-        relato_acidente:
-          'Veículo de passeio colidiu na traseira do ônibus que estava parado no ponto aguardando passageiros.',
-        placa_onibus: 'RDC-9090',
-        prefixo_onibus: '12219',
-      })
-    }, 2000)
-  })
-}
-
-export const simulateInfocar = async (name: string, plate: string) => {
-  return new Promise<{
-    phone: string
-    document: string
-    address: string
-  }>((resolve) => {
-    setTimeout(() => {
-      resolve({
-        phone: '5511999999999',
-        document: '123.456.789-00',
-        address: 'Rua das Flores, 123, São Paulo - SP',
-      })
-    }, 1500)
-  })
-}
+// Remoção completa dos mocks simulateOCR e simulateInfocar para garantir dados apenas 100% reais do backend.

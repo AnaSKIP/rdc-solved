@@ -63,6 +63,14 @@ Deno.serve(async (req: Request) => {
       /(?:Marca\/Modelo|Veículo Causador|Veículo Terceiro|Modelo Terceiro)[\s:-]+([^\n\r]{3,50})/i,
     ])
 
+    const causerDocument = extractField([
+      /(?:CPF|CNPJ|Documento)(?:[\s do causador]*|[\s do terceiro]*)[\s:-]+([0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2}|[0-9]{2}\.[0-9]{3}\.[0-9]{3}\/[0-9]{4}-[0-9]{2}|[0-9]{11,14})/i,
+    ])
+
+    const causerPhone = extractField([
+      /(?:Telefone|Celular|Contato|WhatsApp)(?:[\s do causador]*|[\s do terceiro]*)[\s:-]+(\(?\d{2}\)?\s?\d{4,5}-?\d{4})/i,
+    ])
+
     // Tentativa de extrair dinâmica com multiline de forma mais permissiva
     const dinamicaMatch = text.match(
       /(?:Dinâmica do Acidente|Relato do Acidente|Histórico|Descrição|Dinâmica|Resumo do Evento)[\s:-]+([\s\S]{10,2000}?)(?=\n[A-Z][a-zÀ-ÿ]+[\s:-]|\n\n\n|$)/i,
@@ -81,6 +89,8 @@ Deno.serve(async (req: Request) => {
       causerName,
       placaCausador: placaCausador ? placaCausador.replace('-', '') : null,
       marcaModelo,
+      causerDocument,
+      causerPhone,
       dinamica,
     }
 

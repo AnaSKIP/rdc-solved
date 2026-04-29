@@ -149,77 +149,100 @@ export function CaseForm() {
   const handleEnriquecer = async () => {
     setIsEnriching(true)
     try {
-      toast({
-        title: '🔍 IA: Lendo Placa',
-        description: 'Identificando placa do causador e buscando na Infocar...',
-      })
-      await new Promise((r) => setTimeout(r, 1800))
+      let extractedData: any = {}
 
-      const targetPlate = placaCausador || 'ABC-1234'
-      if (!placaCausador) {
-        setPlacaCausador(targetPlate)
+      // 1. Consultar Infocar / SCI se tiver placa
+      if (placaCausador) {
+        toast({
+          title: '🔍 Consultando Bases Externas',
+          description: 'Iniciando busca real na Infocar e SCI pela placa...',
+        })
+
+        const { data: externalData } = await supabase.functions.invoke('enrich-infocar-sci', {
+          body: { placa: placaCausador },
+        })
+
+        if (externalData && externalData.data) {
+          extractedData = { ...extractedData, ...externalData.data }
+        } else if (externalData && externalData.message) {
+          toast({
+            title: 'Aviso de Integração',
+            description: externalData.message,
+            variant: 'destructive',
+          })
+        }
       }
 
-      const mockOwner = 'Carlos Eduardo Rodrigues'
-      const mockDocument = '123.456.789-00'
-      const mockPhone = '(11) 98765-4321'
-
-      toast({
-        title: '✅ Infocar OK',
-        description: `Proprietário identificado: ${mockOwner}. Acionando SCI...`,
-      })
-      await new Promise((r) => setTimeout(r, 2000))
-
-      toast({
-        title: '✅ SCI OK',
-        description: `Telefone, CPF e endereço localizados e validados.`,
-      })
-      await new Promise((r) => setTimeout(r, 2000))
-
+      // 2. Extrair dados dos anexos reais (B.O. / Relatório)
       toast({
         title: '📄 Analisando Documentos',
-        description: `Lendo B.O. / Relatório interno para extrair a dinâmica...`,
+        description: 'Lendo anexos reais para extrair dinâmica e dados complementares...',
       })
-      await new Promise((r) => setTimeout(r, 2500))
 
+      const pdfAttachment = selectedClaim?.attachments?.find(
+        (a) => a.file_type?.toLowerCase() === 'pdf' || a.url?.toLowerCase().endsWith('.pdf'),
+      )
+
+      if (pdfAttachment?.url) {
+        const { data: pdfData, error: pdfError } = await supabase.functions.invoke('process-pdf', {
+          body: { fileUrl: pdfAttachment.url, fileName: pdfAttachment.file_name },
+        })
+
+        if (!pdfError && pdfData?.extracted) {
+          extractedData = { ...extractedData, ...pdfData.extracted }
+        }
+      } else {
+        toast({
+          title: 'Sem anexos PDF',
+          description: 'Nenhum B.O. ou relatório PDF encontrado para extração da dinâmica.',
+          variant: 'destructive',
+        })
+      }
+
+      // 3. Atualizar formulário com dados reais
       const updates: any = {}
-      if (!causerName) {
-        updates.causerName = mockOwner
-        setCauserName(mockOwner)
+      if (extractedData.causerName && !causerName) {
+        updates.causerName = extractedData.causerName
+        setCauserName(extractedData.causerName)
       }
-      if (!causerDocument) {
-        updates.causerDocument = mockDocument
-        setCauserDocument(mockDocument)
+      if (extractedData.causerDocument && !causerDocument) {
+        updates.causerDocument = extractedData.causerDocument
+        setCauserDocument(extractedData.causerDocument)
       }
-      if (!causerPhone) {
-        updates.causerPhone = mockPhone
-        setCauserPhone(mockPhone)
+      if (extractedData.causerPhone && !causerPhone) {
+        updates.causerPhone = extractedData.causerPhone
+        setCauserPhone(extractedData.causerPhone)
       }
-      if (!tipoVeiculoCausador) {
-        updates.tipoVeiculoCausador = 'VOLKSWAGEN GOL'
-        setTipoVeiculoCausador('VOLKSWAGEN GOL')
+      if (extractedData.marcaModelo && !tipoVeiculoCausador) {
+        updates.tipoVeiculoCausador = extractedData.marcaModelo
+        setTipoVeiculoCausador(extractedData.marcaModelo)
       }
-
-      const mockDinamica =
-        'Resumo gerado por IA com base no B.O.: O veículo do causador (Placa: ' +
-        targetPlate +
-        ') colidiu na traseira do ônibus da empresa que encontrava-se imobilizado no ponto de embarque/desembarque de passageiros. Impacto causou avarias no para-choque traseiro do ônibus.'
-      updates.dinamicaAcidente = mockDinamica
-      setDinamicaAcidente(mockDinamica)
+      if (extractedData.placaCausador && !placaCausador) {
+        updates.placaCausador = extractedData.placaCausador
+        setPlacaCausador(extractedData.placaCausador)
+      }
+      if (extractedData.dinamica && !dinamicaAcidente) {
+        updates.dinamicaAcidente = extractedData.dinamica
+        setDinamicaAcidente(extractedData.dinamica)
+      }
 
       if (Object.keys(updates).length > 0 && selectedClaim?.id) {
         updateClaim(selectedClaim.id.toString(), updates)
+        toast({
+          title: '✨ Enriquecimento Concluído',
+          description: 'Informações reais atualizadas com sucesso.',
+          className: 'bg-green-50 border-green-200 text-green-900',
+        })
+      } else {
+        toast({
+          title: 'Nenhum dado novo',
+          description: 'Não foram encontrados dados adicionais reais nas fontes consultadas.',
+        })
       }
-
-      toast({
-        title: '✨ Enriquecimento Concluído',
-        description: 'Todos os dados foram extraídos e preenchidos sem alucinações.',
-        className: 'bg-green-50 border-green-200 text-green-900',
-      })
-    } catch (e) {
+    } catch (e: any) {
       toast({
         title: 'Erro no Enriquecimento',
-        description: 'Não foi possível completar o processo.',
+        description: e.message || 'Falha ao processar os dados reais.',
         variant: 'destructive',
       })
     } finally {
@@ -580,7 +603,7 @@ export function CaseForm() {
                   ) : (
                     <Sparkles className="w-3 h-3 mr-1.5" />
                   )}
-                  Enriquecer com IA
+                  Enriquecer
                 </Button>
               </div>
             </div>
