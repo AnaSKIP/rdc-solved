@@ -61,7 +61,6 @@ export default function IntakeDashboard() {
     setIsProcessingBatch(true)
     setProcessedCount(0)
 
-    // Busca clientes para associação automática no banco
     const { data: clientsDb } = await supabase.from('clients').select('id, "RAZÃO SOCIAL"')
 
     const batchSize = 10
@@ -70,105 +69,138 @@ export default function IntakeDashboard() {
     for (let i = 0; i < pendingLeads.length; i += batchSize) {
       const batch = pendingLeads.slice(i, i + batchSize)
 
-      // Simula tempo de processamento de extração de IA (OCR/Enriquecimento)
-      await new Promise((resolve) => setTimeout(resolve, 800))
+      // Enriquecimento real conectando à API Infocar/SCI para não alucinar dados
+      const enrichedBatch = await Promise.all(
+        batch.map(async (lead) => {
+          let enrichedData: any = null
+          let actionMsg = 'Processado sem enriquecimento adicional (Sem placa)'
 
-      const updates = batch.map((lead) => ({
-        ...lead,
-        status_processamento: 'ENRIQUECIDO',
-        historico_processamento: [
-          ...(Array.isArray(lead.historico_processamento) ? lead.historico_processamento : []),
-          {
-            data: new Date().toISOString(),
-            acao: 'Enriquecimento em lote via IA concluído e distribuído para Kanban',
-          },
-        ],
-      }))
-
-      const { error } = await supabase
-        .from('caixa_entrada')
-        .upsert(updates, { onConflict: 'id_ra' })
-
-      if (!error) {
-        const claimsToInsert = batch.map((lead) => {
-          const cName = (lead.cliente_nome || '').toLowerCase()
-          const matchedClient = clientsDb?.find((c) => {
-            const rs = (c['RAZÃO SOCIAL'] || '').toLowerCase()
-            return rs && cName && (rs.includes(cName) || cName.includes(rs))
-          })
-
-          return {
-            ra: lead.id_ra,
-            client_id: matchedClient?.id || null,
-            stage: 'Atribuir',
-            status: 'pending',
-            placa_causador: lead.placa_causador || null,
-            causer_name: lead.causador_nome || null,
-            phone: lead.causador_telefone || lead.causador_whatsapp || null,
-            relato_acidente: lead.dinamica_acidente || null,
-            placa_onibus: lead.placa_onibus || null,
-            prefixo_onibus: lead.prefixo_onibus || null,
-            financial_total_value: lead.valor_dano_estimado || 0,
-            is_validated: true,
-            is_enriched: true,
-            date: lead.data_acidente
-              ? new Date(lead.data_acidente).toISOString()
-              : new Date().toISOString(),
-            causer_document: lead.causador_cpf || null,
-            causer_endereco: lead.causador_endereco || null,
-            tipo_veiculo_causador: lead.modelo_causador || null,
-            proprietario_veiculo_causador: lead.proprietario_veiculo_causador || null,
-          }
-        })
-
-        const { data: insertedClaims } = await supabase
-          .from('claims')
-          .upsert(claimsToInsert, { onConflict: 'ra,date,placa_causador', ignoreDuplicates: true })
-          .select('id, ra')
-
-        if (insertedClaims && insertedClaims.length > 0) {
-          const attachmentsToInsert: any[] = []
-
-          for (const lead of batch) {
-            const claim = insertedClaims.find((c) => c.ra === lead.id_ra)
-            if (claim && lead.documentos_anexados && Array.isArray(lead.documentos_anexados)) {
-              lead.documentos_anexados.forEach((doc: any) => {
-                const url = doc.url || doc.url_arquivo || doc.link || doc.fileUrl
-                const name =
-                  doc.nome || doc.nome_arquivo || doc.file_name || doc.name || 'Documento'
-                const type =
-                  doc.tipo ||
-                  doc.tipo_arquivo ||
-                  doc.file_type ||
-                  doc.type ||
-                  (name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'file')
-
-                if (url) {
-                  attachmentsToInsert.push({
-                    claim_id: claim.id,
-                    url: url,
-                    file_name: name,
-                    file_type: type,
-                  })
-                }
+          if (lead.placa_causador) {
+            try {
+              const { data } = await supabase.functions.invoke('enrich-infocar-sci', {
+                body: { placa: lead.placa_causador },
               })
+              if (data?.success && data?.data) {
+                enrichedData = data.data
+                actionMsg =
+                  'Enriquecimento via Infocar/SCI concluído com sucesso e transferido para Kanban'
+              } else {
+                actionMsg =
+                  'Nenhum retorno recebido da API de enriquecimento, transferindo dados originais.'
+              }
+            } catch (err) {
+              actionMsg =
+                'Falha na comunicação com a API de enriquecimento, transferindo dados originais.'
             }
           }
 
-          if (attachmentsToInsert.length > 0) {
-            await supabase.from('attachments').insert(attachmentsToInsert)
+          return {
+            ...lead,
+            causador_nome: enrichedData?.causerName || lead.causador_nome,
+            causador_cpf: enrichedData?.causerDocument || lead.causador_cpf,
+            causador_telefone: enrichedData?.causerPhone || lead.causador_telefone,
+            causador_endereco: enrichedData?.causerEndereco || lead.causador_endereco,
+            proprietario_veiculo_causador:
+              enrichedData?.proprietarioNome || lead.proprietario_veiculo_causador,
+            proprietario_telefone:
+              enrichedData?.proprietarioTelefone || lead.proprietario_telefone || null,
+            status_processamento: 'ENRIQUECIDO',
+            historico_processamento: [
+              ...(Array.isArray(lead.historico_processamento) ? lead.historico_processamento : []),
+              {
+                data: new Date().toISOString(),
+                acao: actionMsg,
+              },
+            ],
+          }
+        }),
+      )
+
+      const claimsToInsert = enrichedBatch.map((lead) => {
+        const cName = (lead.cliente_nome || '').toLowerCase()
+        const matchedClient = clientsDb?.find((c) => {
+          const rs = (c['RAZÃO SOCIAL'] || '').toLowerCase()
+          return rs && cName && (rs.includes(cName) || cName.includes(rs))
+        })
+
+        return {
+          ra: lead.id_ra,
+          client_id: matchedClient?.id || null,
+          stage: 'Atribuir',
+          status: 'pending',
+          placa_causador: lead.placa_causador || null,
+          causer_name: lead.causador_nome || null,
+          phone:
+            lead.causador_telefone || lead.causador_whatsapp || lead.proprietario_telefone || null,
+          relato_acidente: lead.dinamica_acidente || null,
+          placa_onibus: lead.placa_onibus || null,
+          prefixo_onibus: lead.prefixo_onibus || null,
+          financial_total_value: lead.valor_dano_estimado || 0,
+          is_validated: true,
+          is_enriched: true,
+          date: lead.data_acidente
+            ? new Date(lead.data_acidente).toISOString()
+            : new Date().toISOString(),
+          causer_document: lead.causador_cpf || null,
+          causer_endereco: lead.causador_endereco || null,
+          tipo_veiculo_causador: lead.modelo_causador || null,
+          proprietario_veiculo_causador: lead.proprietario_veiculo_causador || null,
+          proprietario_telefone: lead.proprietario_telefone || null,
+        }
+      })
+
+      const { data: insertedClaims, error: insertError } = await supabase
+        .from('claims')
+        .upsert(claimsToInsert, { onConflict: 'ra,date,placa_causador', ignoreDuplicates: false })
+        .select('id, ra')
+
+      if (!insertError && insertedClaims && insertedClaims.length > 0) {
+        const attachmentsToInsert: any[] = []
+
+        for (const lead of enrichedBatch) {
+          const claim = insertedClaims.find((c) => c.ra === lead.id_ra)
+          if (claim && lead.documentos_anexados && Array.isArray(lead.documentos_anexados)) {
+            lead.documentos_anexados.forEach((doc: any) => {
+              const url = doc.url || doc.url_arquivo || doc.link || doc.fileUrl
+              const name = doc.nome || doc.nome_arquivo || doc.file_name || doc.name || 'Documento'
+              const type =
+                doc.tipo ||
+                doc.tipo_arquivo ||
+                doc.file_type ||
+                doc.type ||
+                (name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'file')
+
+              if (url) {
+                attachmentsToInsert.push({
+                  claim_id: claim.id,
+                  url: url,
+                  file_name: name,
+                  file_type: type,
+                })
+              }
+            })
           }
         }
 
-        currentProcessed += batch.length
-        setProcessedCount(currentProcessed)
+        if (attachmentsToInsert.length > 0) {
+          await supabase
+            .from('attachments')
+            .upsert(attachmentsToInsert, { onConflict: 'id', ignoreDuplicates: true })
+        }
+
+        // Move os leads para o Kanban excluindo fisicamente da Caixa de Entrada
+        const idsToDelete = enrichedBatch.map((l) => l.id_ra)
+        await supabase.from('caixa_entrada').delete().in('id_ra', idsToDelete)
       }
+
+      currentProcessed += batch.length
+      setProcessedCount(currentProcessed)
     }
 
     setIsProcessingBatch(false)
     toast({
-      title: 'Processamento Concluído',
-      description: `${pendingLeads.length} leads foram enriquecidos com sucesso.`,
+      title: 'Processamento e Transferência Concluídos',
+      description: `${pendingLeads.length} leads foram enriquecidos e transferidos para o Kanban com sucesso.`,
       className: 'bg-green-50 border-green-200 text-green-900',
     })
     fetchLeads()

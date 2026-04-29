@@ -349,9 +349,16 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
             return
           }
 
-          const { data: existingClaims, error: fetchError } = await supabase
+          // Busca em todos os estágios do pipeline para garantir que não importemos duplicados
+          const { data: existingImportacao, error: fetchError } = await supabase
             .from('caixa_entrada_importacao')
             .select('id_ra, causador_cpf')
+          const { data: existingCaixa } = await supabase
+            .from('caixa_entrada')
+            .select('id_ra, causador_cpf')
+          const { data: existingKanban } = await supabase
+            .from('claims')
+            .select('ra, causer_document')
 
           if (fetchError) throw fetchError
 
@@ -377,23 +384,36 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
               const cnpjMatch = fullText.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{14}/)
               const cnpj = rawCnpj || (cnpjMatch ? cnpjMatch[0] : null)
 
-              const existingWithBaseRa =
-                existingClaims?.filter(
-                  (c) => c.id_ra === baseRa || c.id_ra?.startsWith(`${baseRa}\n`),
-                ) || []
+              // Verifica se já existe na importação
+              const matchImportacao = existingImportacao?.some(
+                (c) =>
+                  (c.id_ra === baseRa || c.id_ra?.startsWith(`${baseRa}\n`)) &&
+                  (c.causador_cpf === cnpj || (!c.causador_cpf && !cnpj)),
+              )
+              // Verifica se já existe na caixa de entrada
+              const matchCaixa = existingCaixa?.some(
+                (c) =>
+                  (c.id_ra === baseRa || c.id_ra?.startsWith(`${baseRa}\n`)) &&
+                  (c.causador_cpf === cnpj || (!c.causador_cpf && !cnpj)),
+              )
+              // Verifica se já existe no Kanban (claims)
+              const matchKanban = existingKanban?.some(
+                (c) =>
+                  (c.ra === baseRa || c.ra?.startsWith(`${baseRa}\n`)) &&
+                  (c.causer_document === cnpj || (!c.causer_document && !cnpj)),
+              )
 
+              let isDuplicate = matchImportacao || matchCaixa || matchKanban
               let finalRa = baseRa
-              let isDuplicate = false
 
-              if (existingWithBaseRa.length > 0) {
-                const sameCnpj = existingWithBaseRa.find(
-                  (c) => c.causador_cpf === cnpj || (!c.causador_cpf && !cnpj),
-                )
-                if (sameCnpj) {
-                  isDuplicate = true
-                } else {
-                  finalRa = `${baseRa}\n${cnpj || 'S-CNPJ'}`
-                }
+              // Se não for duplicado estritamente, mas o RA base já existir, adicionamos o CNPJ para diferenciar
+              if (
+                !isDuplicate &&
+                (existingImportacao?.some((c) => c.id_ra === baseRa) ||
+                  existingCaixa?.some((c) => c.id_ra === baseRa) ||
+                  existingKanban?.some((c) => c.ra === baseRa))
+              ) {
+                finalRa = `${baseRa}\n${cnpj || 'S-CNPJ'}`
               }
 
               if (isDuplicate) {
