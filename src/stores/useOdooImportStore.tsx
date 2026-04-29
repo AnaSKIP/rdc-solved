@@ -88,7 +88,7 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
   const [eta, setEta] = useState<number | null>(null)
   const [isTransferring, setIsTransferring] = useState(false)
 
-  const batchSize = 30 // Lote reduzido (30-50) para evitar timeout e permitir download de mídias
+  const batchSize = 100
 
   const addLog = (message: string, type: LogEntry['type']) => {
     setLogs((prev) => [
@@ -155,18 +155,27 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
   }
 
   const clearBase = async () => {
-    if (!window.confirm('Tem certeza que deseja apagar TODOS os sinistros da base local?')) return
+    if (
+      !window.confirm(
+        'Tem certeza que deseja apagar TODOS os registros da base local de importação?',
+      )
+    )
+      return
     setIsClearing(true)
-    addLog('Iniciando limpeza da base de dados de sinistros...', 'warning')
+    addLog('Iniciando limpeza da base de dados de importação...', 'warning')
     try {
       const { error } = await supabase
-        .from('claims')
+        .from('caixa_entrada_importacao')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000')
+        .neq('id_ra', '00000000-0000-0000-0000-000000000000')
+
       if (error) throw error
 
-      addLog('Base de sinistros limpa com sucesso. Pronta para nova importação.', 'success')
-      toast({ title: 'Base Limpa', description: 'Todos os sinistros removidos localmente.' })
+      addLog('Base de importação limpa com sucesso. Pronta para nova extração.', 'success')
+      toast({
+        title: 'Base Limpa',
+        description: 'Todos os registros removidos da tabela de importação.',
+      })
       setProcessed(0)
       setSuccessful(0)
       setFailed(0)
@@ -229,10 +238,10 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
     setEta(null)
 
     addLog(
-      `Iniciando extração real em lote de ${runTarget} leads (Sem Acordo e Repescagem)...`,
+      `Iniciando extração fiel em lote de ${runTarget} leads (Sem Acordo e Repescagem)...`,
       'info',
     )
-    addLog('Validação estrita de duplicidade por RA + CNPJ configurada.', 'info')
+    addLog('Extração bruta ativada: Nenhuma validação obstrutiva será aplicada.', 'info')
   }
 
   const pauseImport = () => {
@@ -277,21 +286,15 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
 
   const transferLeads = async () => {
     setIsTransferring(true)
-    addLog('Iniciando transferência de todos os leads para a Caixa de Entrada...', 'info')
+    addLog('Iniciando transferência direta de todos os leads para a Caixa de Entrada...', 'info')
     try {
-      const { data, error } = await supabase.functions.invoke('transferir-todos-leads', {
+      const { data, error } = await supabase.functions.invoke('transferir-leads-corrigido', {
         method: 'POST',
       })
       if (error) throw error
       if (data?.error) throw new Error(data.error)
 
       addLog(data.mensagem, 'success')
-      if (data.total_erros > 0) {
-        addLog(
-          `${data.total_erros} leads ignorados devido a falhas de validação (campos vazios).`,
-          'warning',
-        )
-      }
       toast({
         title: 'Transferência Concluída',
         description: data.mensagem,
@@ -320,14 +323,6 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
 
         if (!mounted || status !== 'running') return
 
-        if (processed > 0) {
-          addLog(
-            `Aguardando 2 segundos antes do próximo lote para evitar sobrecarga e timeout nas mídias...`,
-            'info',
-          )
-          await new Promise((r) => setTimeout(r, 2000))
-        }
-
         addLog(
           `[Lote ${currentBatch}] Extraindo ${currentBatchSize} leads e suas respectivas mídias do Odoo via API...`,
           'info',
@@ -355,8 +350,8 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
           }
 
           const { data: existingClaims, error: fetchError } = await supabase
-            .from('claims')
-            .select('ra, causer_document')
+            .from('caixa_entrada_importacao')
+            .select('id_ra, causador_cpf')
 
           if (fetchError) throw fetchError
 
@@ -368,58 +363,6 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
           for (const lead of realLeads) {
             try {
               const getVal = (val: any) => (val === false ? null : val)
-
-              // 1. Validar se é dado mockado
-              const isMockedData = (l: any) => {
-                const placeholders = [
-                  'xyz-9876',
-                  'abc1234',
-                  'ex: abc1234',
-                  'ex: ford / ecosport',
-                  'ex: 1002',
-                  '(00) 00000-0000',
-                  'selecione o cliente...',
-                  'cliente desconhecido',
-                ]
-                const fictitiousNames = [
-                  'roberto almeida',
-                  'ana oliveira',
-                  'douglas martins',
-                  'elisicler ia santos',
-                  'transmimo ltda',
-                ]
-
-                const checkStr = (val: any) => (val ? String(val).toLowerCase() : '')
-
-                const clientName = checkStr(
-                  l.company_name_enriched || l.partner_name || l.contact_name,
-                )
-                const causerName = checkStr(l.x_nome_causador || l.x_causador_nome)
-                const placaOnibus = checkStr(l.x_placa_onibus)
-                const placaCausador = checkStr(l.x_placa_causador)
-                const desc = checkStr(l.description)
-
-                if (
-                  placeholders.some(
-                    (p) =>
-                      clientName.includes(p) ||
-                      causerName.includes(p) ||
-                      placaOnibus.includes(p) ||
-                      placaCausador.includes(p),
-                  )
-                )
-                  return true
-                if (fictitiousNames.some((n) => clientName.includes(n) || causerName.includes(n)))
-                  return true
-                if (desc.includes('<div') || desc.includes('<!--')) return true
-
-                return false
-              }
-
-              if (isMockedData(lead)) {
-                batchFailures++
-                continue
-              }
 
               const baseRa = String(
                 getVal(lead.x_ra) || getVal(lead.name) || `RA-${lead.id}`,
@@ -435,15 +378,16 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
               const cnpj = rawCnpj || (cnpjMatch ? cnpjMatch[0] : null)
 
               const existingWithBaseRa =
-                existingClaims?.filter((c) => c.ra === baseRa || c.ra?.startsWith(`${baseRa}\n`)) ||
-                []
+                existingClaims?.filter(
+                  (c) => c.id_ra === baseRa || c.id_ra?.startsWith(`${baseRa}\n`),
+                ) || []
 
               let finalRa = baseRa
               let isDuplicate = false
 
               if (existingWithBaseRa.length > 0) {
                 const sameCnpj = existingWithBaseRa.find(
-                  (c) => c.causer_document === cnpj || (!c.causer_document && !cnpj),
+                  (c) => c.causador_cpf === cnpj || (!c.causador_cpf && !cnpj),
                 )
                 if (sameCnpj) {
                   isDuplicate = true
@@ -477,22 +421,29 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
               }
 
               batchRecords.push({
-                ra: finalRa,
-                stage: stage,
-                status: 'pending',
-                date,
-                causer_name: causer_name,
-                causer_document: cnpj,
-                financial_total_value: getVal(lead.expected_revenue) || 0,
-                analyst_id: lead.user_id && Array.isArray(lead.user_id) ? lead.user_id[1] : null,
-                relato_acidente: cleanResidualData(getVal(lead.description)),
-                phone: cleanResidualData(getVal(lead.phone) || getVal(lead.mobile)),
+                id_ra: finalRa,
+                status_atual: stage,
+                data_criacao: date,
+                data_importacao: new Date().toISOString(),
+                causador_nome: causer_name,
+                causador_cpf: cnpj,
+                valor_dano_estimado: getVal(lead.expected_revenue) || 0,
+                analista_atribuido:
+                  lead.user_id && Array.isArray(lead.user_id) ? lead.user_id[1] : null,
+                dinamica_acidente: cleanResidualData(getVal(lead.description)),
+                causador_telefone: cleanResidualData(getVal(lead.phone) || getVal(lead.mobile)),
                 placa_onibus: cleanResidualData(getVal(lead.x_placa_onibus)),
                 prefixo_onibus: cleanResidualData(getVal(lead.x_prefixo_onibus)),
-                motorista_onibus: cleanResidualData(getVal(lead.x_motorista_onibus)),
                 placa_causador: cleanResidualData(getVal(lead.x_placa_causador)),
-                tipo_veiculo_causador: cleanResidualData(getVal(lead.x_tipo_veiculo_causador)),
-                is_enriched: false,
+                modelo_causador: cleanResidualData(getVal(lead.x_tipo_veiculo_causador)),
+                status_validacao: 'VÁLIDO',
+                status_transferencia: 'PENDENTE',
+                cliente_nome:
+                  getVal(lead.company_name_enriched) ||
+                  getVal(lead.partner_name) ||
+                  getVal(lead.contact_name) ||
+                  null,
+                documentos_anexados: [],
               })
             } catch (e) {
               batchFailures++
@@ -503,12 +454,12 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
 
           if (batchRecords.length > 0) {
             const { data: insertedClaims, error: upsertError } = await supabase
-              .from('claims')
+              .from('caixa_entrada_importacao')
               .upsert(batchRecords, {
-                onConflict: 'ra,date,placa_causador',
+                onConflict: 'id_ra',
                 ignoreDuplicates: true,
               })
-              .select('id')
+              .select('id_ra')
 
             if (upsertError) throw upsertError
             insertedCount = insertedClaims?.length || 0
@@ -518,7 +469,6 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
             }
           }
 
-          // Atualizar contadores de leads imediatamente para feedback visual em tempo real
           setSuccessful((prev) => prev + insertedCount)
           setFailed((prev) => prev + batchFailures)
           setDuplicatesAvoided((prev) => prev + batchDuplicatesAvoided)
@@ -528,107 +478,117 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
 
           if (odooAttachments.length > 0) {
             addLog(
-              `[Lote ${currentBatch}] Leads salvos. Baixando ${odooAttachments.length} anexos em paralelo (em background)...`,
+              `[Lote ${currentBatch}] Leads salvos. Baixando ${odooAttachments.length} anexos vinculados fielmente aos RAs...`,
               'info',
             )
 
-            const raList = Array.from(odooIdToRa.values())
-            const { data: claimsData } = await supabase
-              .from('claims')
-              .select('id, ra')
-              .in('ra', raList)
-
-            const raToClaimId = new Map<string, string>()
-            claimsData?.forEach((c) => raToClaimId.set(c.ra, c.id))
-
-            const processAttachment = async (att: any) => {
-              if (!mounted || status !== 'running') return 'aborted'
-
+            const attachmentsByRa = new Map<string, any[]>()
+            for (const att of odooAttachments) {
               const ra = odooIdToRa.get(att.res_id)
-              if (!ra) return 'skipped'
-              const claimId = raToClaimId.get(ra)
-              if (!claimId) return 'skipped'
-
-              try {
-                const { data: existingAtt } = await supabase
-                  .from('attachments')
-                  .select('id')
-                  .eq('claim_id', claimId)
-                  .eq('file_name', att.name)
-                  .maybeSingle()
-
-                if (existingAtt) {
-                  return 'skipped'
-                }
-
-                // O upload agora é feito diretamente pela Edge Function para evitar o travamento do navegador (limite de memória na aba)
-                const { data: attData, error: attError } = await supabase.functions.invoke(
-                  'odoo-sync',
-                  {
-                    body: {
-                      ...credentials,
-                      attachmentId: att.id,
-                      claimId: claimId,
-                    },
-                  },
-                )
-
-                if (attError || !attData?.success) {
-                  console.error(`Erro ao processar anexo ${att.name}:`, attError || attData?.error)
-                  return 'error'
-                }
-
-                const mimeType = attData.mimeType || 'application/octet-stream'
-
-                await supabase.from('attachments').insert({
-                  claim_id: claimId,
-                  file_name: attData.name || att.name,
-                  file_type: mimeType.includes('pdf')
-                    ? 'pdf'
-                    : mimeType.includes('image')
-                      ? 'image'
-                      : 'file',
-                  url: attData.publicUrl,
-                })
-
-                // Atualiza a UI em tempo real arquivo por arquivo
-                setAttachedFilesCount((prev) => prev + 1)
-                return 'inserted'
-              } catch (e: any) {
-                console.error(`Erro ao processar anexo ${att.name}:`, e)
-                return 'error'
+              if (ra) {
+                if (!attachmentsByRa.has(ra)) attachmentsByRa.set(ra, [])
+                attachmentsByRa.get(ra)!.push(att)
               }
-              return 'error'
             }
 
-            // Processamento concorrente otimizado (5 workers)
+            const processRaAttachments = async (ra: string, atts: any[]) => {
+              if (!mounted || status !== 'running') return 0
+
+              const validDocs: any[] = []
+              for (const att of atts) {
+                try {
+                  const { data: attData, error: attError } = await supabase.functions.invoke(
+                    'odoo-sync',
+                    {
+                      body: {
+                        ...credentials,
+                        attachmentId: att.id,
+                        claimId: ra.replace(/[^a-zA-Z0-9-]/g, '_'),
+                      },
+                    },
+                  )
+
+                  if (!attError && attData?.success) {
+                    validDocs.push({
+                      name: attData.name || att.name,
+                      url: attData.publicUrl,
+                      type: attData.mimeType?.includes('pdf')
+                        ? 'pdf'
+                        : attData.mimeType?.includes('image')
+                          ? 'image'
+                          : 'file',
+                      id: crypto.randomUUID(),
+                    })
+                  } else {
+                    skippedFiles++
+                  }
+                } catch (e) {
+                  skippedFiles++
+                }
+              }
+
+              if (validDocs.length > 0) {
+                const { data: currentRecord } = await supabase
+                  .from('caixa_entrada_importacao')
+                  .select('documentos_anexados')
+                  .eq('id_ra', ra)
+                  .single()
+
+                const currentDocs = Array.isArray(currentRecord?.documentos_anexados)
+                  ? currentRecord!.documentos_anexados
+                  : []
+                const newDocs = [...currentDocs]
+                let added = 0
+
+                for (const validDoc of validDocs) {
+                  if (!currentDocs.some((d: any) => d.name === validDoc.name)) {
+                    newDocs.push(validDoc)
+                    added++
+                  } else {
+                    skippedFiles++
+                  }
+                }
+
+                if (added > 0) {
+                  await supabase
+                    .from('caixa_entrada_importacao')
+                    .update({ documentos_anexados: newDocs })
+                    .eq('id_ra', ra)
+
+                  return added
+                }
+              }
+              return 0
+            }
+
+            const raEntries = Array.from(attachmentsByRa.entries())
             const limit = 5
             let index = 0
-            const results: string[] = []
 
             const worker = async () => {
-              while (index < odooAttachments.length) {
+              let localAdded = 0
+              while (index < raEntries.length) {
                 if (!mounted || status !== 'running') break
-                const currentIndex = index++
-                results[currentIndex] = await processAttachment(odooAttachments[currentIndex])
+                const [ra, atts] = raEntries[index++]
+                localAdded += await processRaAttachments(ra, atts)
               }
+              return localAdded
             }
 
-            const workers = Array.from({ length: Math.min(limit, odooAttachments.length) }, () =>
+            const workers = Array.from({ length: Math.min(limit, raEntries.length) }, () =>
               worker(),
             )
-            await Promise.all(workers)
+            const results = await Promise.all(workers)
 
-            batchFiles = results.filter((r) => r === 'inserted').length
-            skippedFiles = results.filter((r) => r === 'skipped').length
+            batchFiles = results.reduce((a, b) => a + b, 0)
+            setAttachedFilesCount((prev) => prev + batchFiles)
           }
 
           addLog(
-            `[Lote ${currentBatch}] ${insertedCount} leads importados. Mídias processadas: ${batchFiles} baixadas, ${skippedFiles} ignoradas/existentes.`,
+            `[Lote ${currentBatch}] ${insertedCount} leads importados. Mídias processadas e atreladas fielmente aos RAs: ${batchFiles} baixadas, ${skippedFiles} ignoradas/existentes.`,
             'success',
           )
 
-          // Atualiza o progresso global após finalizar leads + attachments
           const newProcessed = processed + realLeads.length
           setProcessed(newProcessed)
 
@@ -645,12 +605,12 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
             setStatus('complete')
             setProcessed(target > newProcessed ? newProcessed : target)
             addLog(
-              `Importação finalizada com sucesso! Total de leads processados: ${newProcessed}`,
+              `Extração bruta finalizada com sucesso! Total de leads processados: ${newProcessed}. Clique em 'Transferir Agora' para enviar os dados para a Caixa de Entrada.`,
               'success',
             )
             toast({
-              title: 'Carga Finalizada',
-              description: `Sincronização com Odoo concluída, incluindo anexos vinculados.`,
+              title: 'Extração Finalizada',
+              description: `Sincronização fiel com Odoo concluída, incluindo todos os anexos.`,
               className: 'bg-green-50 border-green-200',
             })
           }
@@ -659,7 +619,7 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
           setFailed((prev) => prev + 1)
           addLog(`[Lote ${currentBatch}] Falha na integração: ${err.message}`, 'error')
           toast({
-            title: 'Erro na Carga',
+            title: 'Erro na Extração',
             description: `Falha ao processar lote.`,
             variant: 'destructive',
           })

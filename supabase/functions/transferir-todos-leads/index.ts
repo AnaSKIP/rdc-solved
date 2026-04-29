@@ -16,7 +16,6 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // Busca direta dos pendentes
     const { data: allLeads, error: fetchError } = await supabase
       .from('caixa_entrada_importacao')
       .select('*')
@@ -48,9 +47,9 @@ Deno.serve(async (req: Request) => {
         local_acidente: lead.local_acidente,
         dinamica_acidente: lead.dinamica_acidente,
         valor_dano_estimado: lead.valor_dano_estimado,
-        documentos_anexados: lead.documentos_anexados,
-        data_criacao: lead.data_criacao,
-        status_processamento: 'NOVO',
+        documentos_anexados: lead.documentos_anexados || [],
+        data_criacao: lead.data_criacao || new Date().toISOString(),
+        status_processamento: 'AGUARDANDO PROCESSAMENTO',
         status_conformidade: 'PENDENTE',
       }))
 
@@ -70,7 +69,6 @@ Deno.serve(async (req: Request) => {
       if (updateError) throw updateError
     }
 
-    // Confirmação com as totais solicitadas
     const { count: countDestinoFinal } = await supabase
       .from('caixa_entrada')
       .select('*', { count: 'exact', head: true })

@@ -16,7 +16,6 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // Busca os pendentes de forma direta
     const { data: allLeads, error: fetchError } = await supabase
       .from('caixa_entrada_importacao')
       .select('*')
@@ -27,7 +26,6 @@ Deno.serve(async (req: Request) => {
     let totalMovidos = 0
 
     if (allLeads && allLeads.length > 0) {
-      // Mapeia TODOS os leads sem aplicar filtros, isMockedRA ou perdas de dados
       const recordsToInsert = allLeads.map((lead) => ({
         id_ra: lead.id_ra || `RA-GEN-${crypto.randomUUID()}`,
         cliente_nome: lead.cliente_nome,
@@ -49,13 +47,12 @@ Deno.serve(async (req: Request) => {
         local_acidente: lead.local_acidente,
         dinamica_acidente: lead.dinamica_acidente,
         valor_dano_estimado: lead.valor_dano_estimado,
-        documentos_anexados: lead.documentos_anexados,
-        data_criacao: lead.data_criacao,
-        status_processamento: 'NOVO',
+        documentos_anexados: lead.documentos_anexados || [],
+        data_criacao: lead.data_criacao || new Date().toISOString(),
+        status_processamento: 'AGUARDANDO PROCESSAMENTO',
         status_conformidade: 'PENDENTE',
       }))
 
-      // Insere tudo diretamente em bulk (sem lotes manuais para forçar operação direta)
       const { error: upsertError } = await supabase
         .from('caixa_entrada')
         .upsert(recordsToInsert, { onConflict: 'id_ra', ignoreDuplicates: false })
@@ -64,7 +61,6 @@ Deno.serve(async (req: Request) => {
 
       totalMovidos = recordsToInsert.length
 
-      // Atualiza a tabela origem globalmente para concluídos
       const { error: updateError } = await supabase
         .from('caixa_entrada_importacao')
         .update({ status_transferencia: 'TRANSFERIDO', status_atual: 'TRANSFERIDO' })
@@ -73,7 +69,6 @@ Deno.serve(async (req: Request) => {
       if (updateError) throw updateError
     }
 
-    // Conta o total final na tabela destino para confirmação visual
     const { count: countDestinoFinal } = await supabase
       .from('caixa_entrada')
       .select('*', { count: 'exact', head: true })
