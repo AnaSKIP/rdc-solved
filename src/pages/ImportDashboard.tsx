@@ -1,5 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { supabase } from '@/lib/supabase/client'
+import { useToast } from '@/hooks/use-toast'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
@@ -45,11 +47,41 @@ export default function ImportDashboard() {
     resumeImport,
     retryBatch,
     resetImport,
-    isTransferring,
-    transferLeads,
   } = useOdooImportStore()
 
+  const [isTransferringManual, setIsTransferringManual] = useState(false)
+  const { toast } = useToast()
+
   const logsEndRef = useRef<HTMLDivElement>(null)
+
+  const handleTransfer = async () => {
+    setIsTransferringManual(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('transferir-leads-corrigido')
+      if (error) throw error
+      if (data?.sucesso) {
+        toast({
+          title: 'Sucesso',
+          description:
+            data.mensagem ||
+            `${data.total_transferidos} leads transferidos com sucesso para a Caixa de Entrada.`,
+        })
+      } else {
+        toast({
+          title: 'Aviso',
+          description: data?.mensagem || 'Processamento concluído com observações.',
+        })
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Erro',
+        description: err.message || 'Erro ao transferir leads',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsTransferringManual(false)
+    }
+  }
 
   // Progress is based on the current target limit (100 or total)
   const currentGoal = target > 0 ? target : total
@@ -293,22 +325,22 @@ export default function ImportDashboard() {
                   </Alert>
                 )}
 
-                {/* AÇÃO 2 — Botão "Buscar Todos os Leads" */}
+                {/* AÇÃO 2 — Botão "Transferir Agora" */}
                 <div className="mt-6 pt-4 border-t border-gray-100">
                   <Button
                     className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm gap-2"
-                    onClick={transferLeads}
-                    disabled={isTransferring}
+                    onClick={handleTransfer}
+                    disabled={isTransferringManual}
                   >
-                    {isTransferring ? (
+                    {isTransferringManual ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <DownloadCloud className="w-4 h-4" />
                     )}
-                    {isTransferring ? 'Transferindo...' : 'Buscar Todos os Leads'}
+                    {isTransferringManual ? 'Processando...' : 'Transferir Agora'}
                   </Button>
                   <p className="text-xs text-center text-gray-500 mt-2">
-                    Transfere todos os leads salvos do Odoo para a Caixa de Entrada (RAs Recebidos).
+                    Transfere todos os leads salvos para a Caixa de Entrada (RAs Recebidos).
                   </p>
                 </div>
               </CardContent>

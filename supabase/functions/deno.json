@@ -6,6 +6,7 @@
     "processar-pdf-leads": 4,
     "odoo-sync": 8,
     "odoo-sync-automated": 5,
-    "transferir-todos-leads": 1
+    "transferir-todos-leads": 1,
+    "transferir-leads-corrigido": 1
   }
 }
