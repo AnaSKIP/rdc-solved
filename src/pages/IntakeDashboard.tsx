@@ -16,6 +16,8 @@ import { useToast } from '@/hooks/use-toast'
 import { PasswordConfirmModal } from '@/components/PasswordConfirmModal'
 import { Progress } from '@/components/ui/progress'
 
+export const PIPELINE_STAGES = ['Caixa de Entrada', 'Enriquecimento', 'Análise', 'Concluído']
+
 export default function IntakeDashboard() {
   const [leads, setLeads] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -118,7 +120,7 @@ export default function IntakeDashboard() {
               {isProcessingBatch ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                <Rocket className="w-4 h-4" />
+                <span className="text-base">🚀</span>
               )}
               Enriquecer {pendingCount} Leads
             </Button>
