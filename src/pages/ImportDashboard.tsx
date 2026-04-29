@@ -21,6 +21,7 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { DownloadCloud } from 'lucide-react'
 
 export default function ImportDashboard() {
   const {
@@ -44,6 +45,8 @@ export default function ImportDashboard() {
     resumeImport,
     retryBatch,
     resetImport,
+    isTransferring,
+    transferLeads,
   } = useOdooImportStore()
 
   const logsEndRef = useRef<HTMLDivElement>(null)
@@ -289,9 +292,27 @@ export default function ImportDashboard() {
                     </AlertDescription>
                   </Alert>
                 )}
+
+                {/* AÇÃO 2 — Botão "Buscar Todos os Leads" */}
+                <div className="mt-6 pt-4 border-t border-gray-100">
+                  <Button
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm gap-2"
+                    onClick={transferLeads}
+                    disabled={isTransferring}
+                  >
+                    {isTransferring ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <DownloadCloud className="w-4 h-4" />
+                    )}
+                    {isTransferring ? 'Transferindo...' : 'Buscar Todos os Leads'}
+                  </Button>
+                  <p className="text-xs text-center text-gray-500 mt-2">
+                    Transfere todos os leads salvos do Odoo para a Caixa de Entrada (RAs Recebidos).
+                  </p>
+                </div>
               </CardContent>
             </Card>
-
             <Card className="lg:col-span-3 shadow-sm bg-[#1e1e2e] border-gray-800 text-gray-300 font-mono">
               <CardHeader className="border-b border-gray-800 pb-3 py-3 bg-[#181825] rounded-t-lg">
                 <CardTitle className="text-sm font-medium text-gray-400 flex items-center gap-2">

@@ -42,6 +42,8 @@ interface OdooImportState {
   retryBatch: () => void
   resetImport: () => void
   testConnection: () => Promise<boolean>
+  isTransferring: boolean
+  transferLeads: () => Promise<void>
 }
 
 const OdooImportContext = createContext<OdooImportState | null>(null)
@@ -84,6 +86,7 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
   const [isClearing, setIsClearing] = useState(false)
   const [startTime, setStartTime] = useState<number | null>(null)
   const [eta, setEta] = useState<number | null>(null)
+  const [isTransferring, setIsTransferring] = useState(false)
 
   const batchSize = 30 // Lote reduzido (30-50) para evitar timeout e permitir download de mídias
 
@@ -269,6 +272,40 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
       return true
     } catch {
       return false
+    }
+  }
+
+  const transferLeads = async () => {
+    setIsTransferring(true)
+    addLog('Iniciando transferência de todos os leads para a Caixa de Entrada...', 'info')
+    try {
+      const { data, error } = await supabase.functions.invoke('transferir-todos-leads', {
+        method: 'POST',
+      })
+      if (error) throw error
+      if (data?.error) throw new Error(data.error)
+
+      addLog(data.mensagem, 'success')
+      if (data.total_erros > 0) {
+        addLog(
+          `${data.total_erros} leads ignorados devido a falhas de validação (campos vazios).`,
+          'warning',
+        )
+      }
+      toast({
+        title: 'Transferência Concluída',
+        description: data.mensagem,
+        className: 'bg-green-50 border-green-200',
+      })
+    } catch (err: any) {
+      addLog(`Erro na transferência: ${err.message}`, 'error')
+      toast({
+        title: 'Erro na Transferência',
+        description: 'Ocorreu um erro ao transferir os leads: ' + err.message,
+        variant: 'destructive',
+      })
+    } finally {
+      setIsTransferring(false)
     }
   }
 
@@ -663,6 +700,8 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
         retryBatch,
         resetImport,
         testConnection,
+        isTransferring,
+        transferLeads,
       }}
     >
       {children}
