@@ -24,10 +24,9 @@ Deno.serve(async (req: Request) => {
     const arrayBuffer = await fileRes.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
-    console.log('Parsing PDF sem alucinação...')
+    console.log('Parsing PDF - Iniciando extração factual estrita...')
     const pdfData = await pdf(buffer)
     const text = pdfData.text || ''
-    console.log('Extracted Text snippet:', text.substring(0, 300))
 
     const extractField = (patterns: RegExp[]) => {
       for (const regex of patterns) {
@@ -71,13 +70,20 @@ Deno.serve(async (req: Request) => {
       /(?:Telefone|Celular|Contato|WhatsApp)(?:[\s do causador]*|[\s do terceiro]*)[\s:-]+(\(?\d{2}\)?\s?\d{4,5}-?\d{4})/i,
     ])
 
-    // Tentativa de extrair dinâmica com multiline de forma mais permissiva
+    const proprietarioNome = extractField([
+      /(?:Proprietário do Veículo|Nome do Proprietário|Proprietário)[\s:-]+([^\n\r]{3,50})/i,
+    ])
+
+    const causerEndereco = extractField([
+      /(?:Endereço|Logradouro|Local de Residência)(?:[\s do causador]*|[\s do terceiro]*)[\s:-]+([^\n\r]{5,100})/i,
+    ])
+
+    // Busca rígida por sumários sem expansão do texto
     const dinamicaMatch = text.match(
-      /(?:Dinâmica do Acidente|Relato do Acidente|Histórico|Descrição|Dinâmica|Resumo do Evento)[\s:-]+([\s\S]{10,2000}?)(?=\n[A-Z][a-zÀ-ÿ]+[\s:-]|\n\n\n|$)/i,
+      /(?:Dinâmica do Acidente|Relato do Acidente|Histórico|Descrição|Dinâmica|Resumo do Evento)[\s:-]+([\s\S]{10,2000}?)(?=\n(?:[A-Z][a-zÀ-ÿ]+[\s:-])|\n\n\n|$)/i,
     )
     let dinamica = dinamicaMatch ? dinamicaMatch[1].trim() : null
 
-    // Limpar quebras de linha excessivas
     if (dinamica) {
       dinamica = dinamica.replace(/\s+/g, ' ')
     }
@@ -91,10 +97,12 @@ Deno.serve(async (req: Request) => {
       marcaModelo,
       causerDocument,
       causerPhone,
+      causerEndereco,
+      proprietarioNome,
       dinamica,
     }
 
-    console.log('Successfully extracted fields:', extracted)
+    console.log('Dados extraídos factual e estritamente:', extracted)
 
     return new Response(JSON.stringify({ success: true, extracted }), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders },

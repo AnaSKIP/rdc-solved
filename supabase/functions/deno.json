@@ -2,13 +2,13 @@
   "_versions": {
     "send-whatsapp": 28,
     "zapi-webhook": 17,
-    "process-pdf": 7,
+    "process-pdf": 8,
     "processar-pdf-leads": 5,
     "odoo-sync": 8,
     "odoo-sync-automated": 6,
     "transferir-todos-leads": 4,
     "transferir-leads-corrigido": 4,
     "admin-reset-password": 1,
-    "enrich-infocar-sci": 1
+    "enrich-infocar-sci": 2
   }
 }

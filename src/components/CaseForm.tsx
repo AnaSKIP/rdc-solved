@@ -133,6 +133,19 @@ export function CaseForm() {
     selectedClaim?.tipoVeiculoCausador || '',
   )
 
+  // Novos campos do Causador / Proprietário
+  const [causerEndereco, setCauserEndereco] = useState(
+    selectedClaim?.causerEndereco || selectedClaim?.causer_endereco || '',
+  )
+  const [proprietarioNome, setProprietarioNome] = useState(
+    selectedClaim?.proprietarioVeiculoCausador ||
+      selectedClaim?.proprietario_veiculo_causador ||
+      '',
+  )
+  const [proprietarioTelefone, setProprietarioTelefone] = useState(
+    selectedClaim?.proprietarioTelefone || selectedClaim?.proprietario_telefone || '',
+  )
+
   const [causerClaimNumber, setCauserClaimNumberLocal] = useState(
     selectedClaim?.causerClaimNumber || '',
   )
@@ -155,18 +168,18 @@ export function CaseForm() {
       if (placaCausador) {
         toast({
           title: '🔍 Consultando Bases Externas',
-          description: 'Iniciando busca real na Infocar e SCI pela placa...',
+          description: 'Buscando informações oficiais do veículo e proprietário...',
         })
 
         const { data: externalData } = await supabase.functions.invoke('enrich-infocar-sci', {
           body: { placa: placaCausador },
         })
 
-        if (externalData && externalData.data) {
+        if (externalData && externalData.success && externalData.data) {
           extractedData = { ...extractedData, ...externalData.data }
         } else if (externalData && externalData.message) {
           toast({
-            title: 'Aviso de Integração',
+            title: 'Aviso de Consulta',
             description: externalData.message,
             variant: 'destructive',
           })
@@ -176,7 +189,7 @@ export function CaseForm() {
       // 2. Extrair dados dos anexos reais (B.O. / Relatório)
       toast({
         title: '📄 Analisando Documentos',
-        description: 'Lendo anexos reais para extrair dinâmica e dados complementares...',
+        description: 'Processando B.O. para extração factual da dinâmica...',
       })
 
       const pdfAttachment = selectedClaim?.attachments?.find(
@@ -193,8 +206,8 @@ export function CaseForm() {
         }
       } else {
         toast({
-          title: 'Sem anexos PDF',
-          description: 'Nenhum B.O. ou relatório PDF encontrado para extração da dinâmica.',
+          title: 'Aviso',
+          description: 'Nenhum anexo PDF encontrado para extrair a dinâmica do B.O.',
           variant: 'destructive',
         })
       }
@@ -226,23 +239,40 @@ export function CaseForm() {
         setDinamicaAcidente(extractedData.dinamica)
       }
 
+      // Novos campos de Proprietário e Endereço
+      if (extractedData.causerEndereco && !causerEndereco) {
+        updates.causerEndereco = extractedData.causerEndereco
+        updates.causer_endereco = extractedData.causerEndereco
+        setCauserEndereco(extractedData.causerEndereco)
+      }
+      if (extractedData.proprietarioNome && !proprietarioNome) {
+        updates.proprietarioVeiculoCausador = extractedData.proprietarioNome
+        updates.proprietario_veiculo_causador = extractedData.proprietarioNome
+        setProprietarioNome(extractedData.proprietarioNome)
+      }
+      if (extractedData.proprietarioTelefone && !proprietarioTelefone) {
+        updates.proprietarioTelefone = extractedData.proprietarioTelefone
+        updates.proprietario_telefone = extractedData.proprietarioTelefone
+        setProprietarioTelefone(extractedData.proprietarioTelefone)
+      }
+
       if (Object.keys(updates).length > 0 && selectedClaim?.id) {
         updateClaim(selectedClaim.id.toString(), updates)
         toast({
-          title: '✨ Enriquecimento Concluído',
-          description: 'Informações reais atualizadas com sucesso.',
+          title: '✨ Dados Atualizados',
+          description: 'Informações processadas e preenchidas com sucesso.',
           className: 'bg-green-50 border-green-200 text-green-900',
         })
       } else {
         toast({
-          title: 'Nenhum dado novo',
-          description: 'Não foram encontrados dados adicionais reais nas fontes consultadas.',
+          title: 'Sem novos dados',
+          description: 'A consulta não retornou dados inéditos para preencher.',
         })
       }
     } catch (e: any) {
       toast({
-        title: 'Erro no Enriquecimento',
-        description: e.message || 'Falha ao processar os dados reais.',
+        title: 'Erro no Processamento',
+        description: e.message || 'Falha ao buscar dados externos.',
         variant: 'destructive',
       })
     } finally {
@@ -265,6 +295,17 @@ export function CaseForm() {
     setCauserPhone(selectedClaim?.causerPhone || '')
     setCauserDocument(selectedClaim?.causerDocument || '')
     setTipoVeiculoCausador(selectedClaim?.tipoVeiculoCausador || '')
+
+    setCauserEndereco(selectedClaim?.causerEndereco || selectedClaim?.causer_endereco || '')
+    setProprietarioNome(
+      selectedClaim?.proprietarioVeiculoCausador ||
+        selectedClaim?.proprietario_veiculo_causador ||
+        '',
+    )
+    setProprietarioTelefone(
+      selectedClaim?.proprietarioTelefone || selectedClaim?.proprietario_telefone || '',
+    )
+
     setCauserClaimNumberLocal(selectedClaim?.causerClaimNumber || '')
     setClientClaimNumberLocal(selectedClaim?.clientClaimNumber || '')
     setAssumedClaimValue(selectedClaim?.financialTotalValue || 0)
@@ -672,8 +713,70 @@ export function CaseForm() {
                   placeholder="Ex: FORD / ECOSPORT"
                 />
               </div>
+              <div className="flex items-center gap-4">
+                <Label className="w-32 text-xs text-gray-500 font-bold uppercase shrink-0">
+                  Endereço Causador
+                </Label>
+                <Input
+                  value={causerEndereco}
+                  onChange={(e) => setCauserEndereco(e.target.value)}
+                  onBlur={() =>
+                    handleSaveData(
+                      { causerEndereco, causer_endereco: causerEndereco },
+                      'Endereço do causador atualizado',
+                    )
+                  }
+                  className="h-8 text-sm bg-white flex-1"
+                  placeholder="Logradouro, Bairro, Cidade - UF"
+                />
+              </div>
 
-              <div className="flex flex-col gap-2 pt-2 mt-2 border-t border-orange-200/50">
+              <div className="flex flex-col gap-3 mt-4 pt-4 border-t border-orange-200/50">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[11px] font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1">
+                    Dados do Proprietário (Legal)
+                  </span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <Label className="w-32 text-xs text-gray-500 font-bold uppercase shrink-0">
+                    Nome Proprietário
+                  </Label>
+                  <Input
+                    value={proprietarioNome}
+                    onChange={(e) => setProprietarioNome(e.target.value)}
+                    onBlur={() =>
+                      handleSaveData(
+                        {
+                          proprietarioVeiculoCausador: proprietarioNome,
+                          proprietario_veiculo_causador: proprietarioNome,
+                        },
+                        'Nome do proprietário atualizado',
+                      )
+                    }
+                    className="h-8 text-sm bg-white flex-1 border-blue-200 focus-visible:ring-blue-500"
+                    placeholder="Nome que consta no documento do veículo"
+                  />
+                </div>
+                <div className="flex items-center gap-4">
+                  <Label className="w-32 text-xs text-gray-500 font-bold uppercase shrink-0">
+                    Tel. Proprietário
+                  </Label>
+                  <Input
+                    value={proprietarioTelefone}
+                    onChange={(e) => setProprietarioTelefone(e.target.value)}
+                    onBlur={() =>
+                      handleSaveData(
+                        { proprietarioTelefone, proprietario_telefone: proprietarioTelefone },
+                        'Telefones do proprietário atualizados',
+                      )
+                    }
+                    className="h-8 text-sm bg-white flex-1 border-blue-200 focus-visible:ring-blue-500"
+                    placeholder="(00) 00000-0000, (11) 11111-1111"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 pt-4 mt-2 border-t border-orange-200/50">
                 <Label className="text-xs text-gray-500 font-bold uppercase">
                   Dinâmica do Acidente
                 </Label>
@@ -682,7 +785,7 @@ export function CaseForm() {
                   onChange={(e) => setDinamicaAcidente(e.target.value)}
                   onBlur={() => handleSaveData({ dinamicaAcidente }, 'Dinâmica atualizada')}
                   className="min-h-[80px] w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  placeholder="Descreva como ocorreu o acidente..."
+                  placeholder="Resumo extraído do B.O. ou Relatório de ocorrência..."
                 />
               </div>
             </div>
