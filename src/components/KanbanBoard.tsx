@@ -29,8 +29,10 @@ import {
   Filter,
   X,
   Check,
+  Plus,
 } from 'lucide-react'
 import { FilePreviewModal } from '@/components/FilePreviewModal'
+import { AddClaimModal } from '@/components/AddClaimModal'
 import { getTagStyle, AVAILABLE_TAGS } from '@/components/CaseTags'
 import useKanbanStore, { KanbanClaim } from '@/stores/useKanbanStore'
 import useCaseStore, { PIPELINE_STAGES, PipelineStage } from '@/stores/useCaseStore'
@@ -78,6 +80,8 @@ export function KanbanBoard() {
     name: string
     type: string
   } | null>(null)
+
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
 
   const topScrollRef = useRef<HTMLDivElement>(null)
   const boardScrollRef = useRef<HTMLDivElement>(null)
@@ -395,6 +399,14 @@ export function KanbanBoard() {
           <div className="flex-1"></div>
 
           <Button
+            onClick={() => setIsAddModalOpen(true)}
+            size="sm"
+            className="h-8 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 gap-1.5 shadow-sm font-medium"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Novo
+          </Button>
+          <Button
             onClick={syncFromOdoo}
             disabled={isSyncing}
             size="sm"
@@ -640,6 +652,7 @@ export function KanbanBoard() {
         fileName={previewFile?.name || ''}
         fileType={previewFile?.type || ''}
       />
+      <AddClaimModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} />
     </div>
   )
 }
