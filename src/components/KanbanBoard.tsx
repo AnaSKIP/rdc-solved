@@ -37,8 +37,21 @@ import { AddClaimModal } from '@/components/AddClaimModal'
 import { PasswordConfirmModal } from '@/components/PasswordConfirmModal'
 import { getTagStyle, AVAILABLE_TAGS } from '@/components/CaseTags'
 import useKanbanStore, { KanbanClaim } from '@/stores/useKanbanStore'
-import useCaseStore, { PIPELINE_STAGES, PipelineStage } from '@/stores/useCaseStore'
+import useCaseStore from '@/stores/useCaseStore'
 import { useToast } from '@/hooks/use-toast'
+
+export const PIPELINE_STAGES = [
+  'Caixa de Entrada',
+  'Enriquecimento',
+  'Atribuir',
+  'Em análise',
+  'Negociação',
+  'Concluído',
+  'Sem acordo',
+  'Repescagem',
+] as const
+
+export type PipelineStage = (typeof PIPELINE_STAGES)[number]
 import { useAuth } from '@/hooks/use-auth'
 import useContactStore from '@/stores/useContactStore'
 import { cn, formatRaDisplay } from '@/lib/utils'

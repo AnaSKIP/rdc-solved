@@ -1365,25 +1365,32 @@ export const Constants = {
 //    RETURNS trigger
 //    LANGUAGE plpgsql
 //   AS $function$
-//     BEGIN
-//       INSERT INTO public.claims (
-//         ra,
-//         causer_name,
-//         financial_total_value,
-//         stage,
-//         date,
-//         analyst_id
-//       ) VALUES (
-//         COALESCE(NEW.ra, 'RA-' || substr(gen_random_uuid()::text, 1, 6)),
-//         NEW.empresa,
-//         NEW.valor,
-//         COALESCE(NEW.status, 'Atribuir'),
-//         COALESCE(NEW.data_entrada, NOW()),
-//         NEW.analista_id
-//       );
-//       RETURN NEW;
-//     END;
-//     $function$
+//   DECLARE
+//     v_client_id uuid;
+//   BEGIN
+//     -- Attempt to find the client_id if a client with that name exists
+//     SELECT id INTO v_client_id FROM public.clients WHERE "RAZÃO SOCIAL" ILIKE '%' || NEW.empresa || '%' LIMIT 1;
+//
+//     INSERT INTO public.claims (
+//       ra,
+//       client_id,
+//       financial_total_value,
+//       stage,
+//       date,
+//       analyst_id,
+//       causer_name
+//     ) VALUES (
+//       COALESCE(NEW.ra, 'RA-' || substr(gen_random_uuid()::text, 1, 6)),
+//       v_client_id::text,
+//       NEW.valor,
+//       COALESCE(NEW.status, 'Atribuir'),
+//       COALESCE(NEW.data_entrada, NOW()),
+//       NEW.analista_id,
+//       NULL -- We map NEW.empresa to nothing for causer_name, keeping it clean for proper extraction
+//     );
+//     RETURN NEW;
+//   END;
+//   $function$
 //
 
 // --- TRIGGERS ---
