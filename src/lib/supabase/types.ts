@@ -133,6 +133,7 @@ export type Database = {
           placa_causador: string | null
           placa_onibus: string | null
           prefixo_onibus: string | null
+          proprietario_telefone: string | null
           proprietario_veiculo_causador: string | null
           status_conformidade: string | null
           status_processamento: string | null
@@ -167,6 +168,7 @@ export type Database = {
           placa_causador?: string | null
           placa_onibus?: string | null
           prefixo_onibus?: string | null
+          proprietario_telefone?: string | null
           proprietario_veiculo_causador?: string | null
           status_conformidade?: string | null
           status_processamento?: string | null
@@ -201,6 +203,7 @@ export type Database = {
           placa_causador?: string | null
           placa_onibus?: string | null
           prefixo_onibus?: string | null
+          proprietario_telefone?: string | null
           proprietario_veiculo_causador?: string | null
           status_conformidade?: string | null
           status_processamento?: string | null
@@ -235,6 +238,7 @@ export type Database = {
           placa_causador: string | null
           placa_onibus: string | null
           prefixo_onibus: string | null
+          proprietario_telefone: string | null
           proprietario_veiculo_causador: string | null
           status_atual: string | null
           status_transferencia: string | null
@@ -266,6 +270,7 @@ export type Database = {
           placa_causador?: string | null
           placa_onibus?: string | null
           prefixo_onibus?: string | null
+          proprietario_telefone?: string | null
           proprietario_veiculo_causador?: string | null
           status_atual?: string | null
           status_transferencia?: string | null
@@ -297,6 +302,7 @@ export type Database = {
           placa_causador?: string | null
           placa_onibus?: string | null
           prefixo_onibus?: string | null
+          proprietario_telefone?: string | null
           proprietario_veiculo_causador?: string | null
           status_atual?: string | null
           status_transferencia?: string | null
@@ -394,6 +400,7 @@ export type Database = {
           placa_onibus: string | null
           prefixo_onibus: string | null
           probability: number | null
+          proprietario_telefone: string | null
           proprietario_veiculo_causador: string | null
           proxima_tentativa_repescagem: string | null
           ra: string
@@ -445,6 +452,7 @@ export type Database = {
           placa_onibus?: string | null
           prefixo_onibus?: string | null
           probability?: number | null
+          proprietario_telefone?: string | null
           proprietario_veiculo_causador?: string | null
           proxima_tentativa_repescagem?: string | null
           ra: string
@@ -496,6 +504,7 @@ export type Database = {
           placa_onibus?: string | null
           prefixo_onibus?: string | null
           probability?: number | null
+          proprietario_telefone?: string | null
           proprietario_veiculo_causador?: string | null
           proxima_tentativa_repescagem?: string | null
           ra?: string
@@ -968,6 +977,7 @@ export const Constants = {
 //   id_transferencia: uuid (nullable)
 //   data_transferencia: timestamp with time zone (nullable)
 //   lote_numero: integer (nullable)
+//   proprietario_telefone: text (nullable)
 // Table: caixa_entrada_importacao
 //   id_ra: text (not null)
 //   cliente_nome: text (nullable)
@@ -998,6 +1008,7 @@ export const Constants = {
 //   data_importacao: timestamp with time zone (nullable, default: now())
 //   lote_importacao: integer (nullable)
 //   id_transferencia: uuid (nullable)
+//   proprietario_telefone: text (nullable)
 // Table: claim_messages
 //   id: uuid (not null, default: gen_random_uuid())
 //   claim_id: uuid (not null)
@@ -1055,6 +1066,7 @@ export const Constants = {
 //   proxima_tentativa_repescagem: timestamp with time zone (nullable)
 //   motivo_finalizacao: text (nullable)
 //   data_finalizacao: timestamp with time zone (nullable)
+//   proprietario_telefone: text (nullable)
 // Table: clients
 //   id: uuid (not null, default: gen_random_uuid())
 //   RAZÃO SOCIAL: text (not null)

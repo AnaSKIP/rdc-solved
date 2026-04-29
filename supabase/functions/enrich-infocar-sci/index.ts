@@ -17,14 +17,13 @@ Deno.serve(async (req: Request) => {
     const infocarToken = Deno.env.get('INFOCAR_TOKEN')
     const sciToken = Deno.env.get('SCI_TOKEN')
 
-    // Protocolo Anti-Alucinação: Não geramos dados simulados se a API não estiver conectada.
-    // Retornamos estritamente vazio ou enviamos um aviso claro para o frontend.
+    // Protocolo de Transparência Rigorosa
     if (!infocarToken || !sciToken) {
       return new Response(
         JSON.stringify({
           success: false,
           message:
-            'Aviso: Chaves de API (Infocar/SCI) ausentes no servidor. Apenas dados encontrados nos anexos reais (B.O./Relatórios) serão processados e exibidos.',
+            'Nenhum retorno recebido da API. Ação não confirmada (Credenciais de integração não configuradas).',
           data: null,
         }),
         {
@@ -33,37 +32,51 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    // --- CÓDIGO DE INTEGRAÇÃO REAL (Aguardando tokens válidos em Produção) ---
-    /*
-    const infocarRes = await fetch(`https://api.infocar.com.br/v1/placa/${placa}`, { headers: { Authorization: `Bearer ${infocarToken}` }})
-    const infocarData = await infocarRes.json()
-    
-    const sciRes = await fetch(`https://api.sci.com.br/v1/cpf/${infocarData.cpf}`, { headers: { Authorization: `Bearer ${sciToken}` }})
-    const sciData = await sciRes.json()
+    // --- CÓDIGO DE INTEGRAÇÃO REAL ---
+    try {
+      const infocarRes = await fetch(`https://api.infocar.com.br/v1/placa/${placa}`, {
+        headers: { Authorization: `Bearer ${infocarToken}` },
+      })
+      if (!infocarRes.ok) throw new Error('Falha na comunicação com Infocar.')
+      const infocarData = await infocarRes.json()
 
-    return new Response(JSON.stringify({ 
-      success: true, 
-      message: 'Consulta realizada nas bases com sucesso.',
-      data: {
-        causerName: infocarData.nome,
-        causerDocument: infocarData.cpf_cnpj || infocarData.cpf,
-        causerPhone: sciData.telefone_principal || sciData.telefone,
-        causerEndereco: sciData.endereco_completo || sciData.endereco,
-        proprietarioNome: infocarData.proprietario_nome || infocarData.nome,
-        // Caso o SCI retorne um array de telefones, eles são formatados como uma string única para exibição global
-        proprietarioTelefone: sciData.telefones ? sciData.telefones.join(', ') : sciData.telefone
-      } 
-    }), {
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
-    })
-    */
+      const sciRes = await fetch(`https://api.sci.com.br/v1/cpf/${infocarData.cpf}`, {
+        headers: { Authorization: `Bearer ${sciToken}` },
+      })
+      if (!sciRes.ok) throw new Error('Falha na comunicação com SCI.')
+      const sciData = await sciRes.json()
 
-    return new Response(
-      JSON.stringify({ success: true, message: 'Aguardando implementação da integração real.' }),
-      {
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      },
-    )
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Ação executada. Retorno recebido das bases de dados reais.',
+          data: {
+            causerName: infocarData.nome || null,
+            causerDocument: infocarData.cpf_cnpj || infocarData.cpf || null,
+            causerPhone: sciData.telefone_principal || sciData.telefone || null,
+            causerEndereco: sciData.endereco_completo || sciData.endereco || null,
+            proprietarioNome: infocarData.proprietario_nome || infocarData.nome || null,
+            proprietarioTelefone: sciData.telefones
+              ? sciData.telefones.join(', ')
+              : sciData.telefone || null,
+          },
+        }),
+        {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        },
+      )
+    } catch (e: any) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: `Nenhum retorno recebido. Ação falhou: ${e.message}`,
+          data: null,
+        }),
+        {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        },
+      )
+    }
   } catch (err: any) {
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,

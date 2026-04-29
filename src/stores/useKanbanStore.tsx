@@ -21,6 +21,7 @@ export interface KanbanClaim {
   companyName: string
   companyCnpj: string
   analyst: string
+  analystId?: string | null
   stage: PipelineStage
   placaCausador: string | null
   dinamicaAcidente: string | null
@@ -129,6 +130,7 @@ export const KanbanProvider = ({ children }: { children: React.ReactNode }) => {
               contacts.find((c) => c?.id === d?.analyst_id?.toString())?.name?.toString() ||
               d?.analyst_id?.toString() ||
               'Não Atribuído',
+            analystId: d?.analyst_id?.toString() || null,
             stage: (() => {
               let rawStage = d?.stage?.toString() || 'Atribuir'
               if (d?.status?.toString() === 'Repescagem' || rawStage === 'Repescagem') {
@@ -282,6 +284,7 @@ export const KanbanProvider = ({ children }: { children: React.ReactNode }) => {
     if (updates.tipoVeiculoCausador !== undefined)
       dbUpdates.tipo_veiculo_causador = updates.tipoVeiculoCausador
     if (updates.rawDate !== undefined) dbUpdates.date = updates.rawDate
+    if (updates.analystId !== undefined) dbUpdates.analyst_id = updates.analystId
     if (updates.causerModelo !== undefined) dbUpdates.causer_modelo = updates.causerModelo
     if (updates.causerAno !== undefined) dbUpdates.causer_ano = updates.causerAno
     if (updates.causerWhatsapp !== undefined) dbUpdates.causer_whatsapp = updates.causerWhatsapp

@@ -14,6 +14,8 @@ import {
   ChevronsUpDown,
   Loader2,
   Upload,
+  Paperclip,
+  FileText,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import {
@@ -177,10 +179,21 @@ export function CaseForm() {
 
         if (externalData && externalData.success && externalData.data) {
           extractedData = { ...extractedData, ...externalData.data }
+          toast({
+            title: 'Ação executada: Retorno da API',
+            description: externalData.message || 'Dados encontrados com sucesso.',
+            className: 'bg-green-50 border-green-200',
+          })
         } else if (externalData && externalData.message) {
           toast({
-            title: 'Aviso de Consulta',
+            title: 'Nenhum retorno recebido',
             description: externalData.message,
+            variant: 'destructive',
+          })
+        } else {
+          toast({
+            title: 'Nenhum retorno recebido',
+            description: 'Ação não confirmada. Nenhuma resposta da API.',
             variant: 'destructive',
           })
         }
@@ -189,7 +202,7 @@ export function CaseForm() {
       // 2. Extrair dados dos anexos reais (B.O. / Relatório)
       toast({
         title: '📄 Analisando Documentos',
-        description: 'Processando B.O. para extração factual da dinâmica...',
+        description: 'Enviando documento real para extração factual...',
       })
 
       const pdfAttachment = selectedClaim?.attachments?.find(
@@ -201,13 +214,27 @@ export function CaseForm() {
           body: { fileUrl: pdfAttachment.url, fileName: pdfAttachment.file_name },
         })
 
-        if (!pdfError && pdfData?.extracted) {
+        if (!pdfError && pdfData?.success && pdfData.extracted) {
           extractedData = { ...extractedData, ...pdfData.extracted }
+          toast({
+            title: 'Ação executada: Extração de PDF',
+            description: 'Resultado recebido: Dados extraídos diretamente do arquivo.',
+            className: 'bg-green-50 border-green-200',
+          })
+        } else {
+          toast({
+            title: 'Nenhum retorno recebido',
+            description:
+              pdfError?.message ||
+              pdfData?.error ||
+              'Ação não confirmada. Falha na leitura do PDF.',
+            variant: 'destructive',
+          })
         }
       } else {
         toast({
-          title: 'Aviso',
-          description: 'Nenhum anexo PDF encontrado para extrair a dinâmica do B.O.',
+          title: 'Aviso de Execução',
+          description: 'Nenhum anexo PDF encontrado para realizar a extração.',
           variant: 'destructive',
         })
       }
@@ -426,6 +453,29 @@ export function CaseForm() {
               </div>
             )}
           </div>
+
+          {selectedClaim?.attachments && selectedClaim.attachments.length > 0 && (
+            <div className="mt-2 p-3 bg-blue-50/50 rounded-lg border border-blue-100 shadow-sm">
+              <div className="flex items-center gap-2 mb-2 text-xs font-bold text-blue-900 uppercase tracking-wider">
+                <Paperclip className="w-3.5 h-3.5" /> Anexos Disponíveis
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {selectedClaim.attachments.map((att) => (
+                  <Button
+                    key={att.id}
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs bg-white text-blue-700 border-blue-200 hover:bg-blue-50 shadow-sm transition-colors"
+                    onClick={() => window.open(att.url, '_blank')}
+                  >
+                    <FileText className="w-3.5 h-3.5 mr-1.5" />
+                    {att.file_name}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-8 mt-4 bg-gray-50/80 p-4 rounded-lg border border-gray-100 shadow-inner">
             <div className="flex-1 min-w-[200px]">
               <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1 flex items-center gap-1">

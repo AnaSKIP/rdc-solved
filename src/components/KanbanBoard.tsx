@@ -56,6 +56,7 @@ import { useAuth } from '@/hooks/use-auth'
 import useContactStore from '@/stores/useContactStore'
 import { cn, formatRaDisplay } from '@/lib/utils'
 import { KanbanList } from './KanbanList'
+import { Users, FileText } from 'lucide-react'
 
 export function KanbanBoard() {
   const {
@@ -267,6 +268,57 @@ export function KanbanBoard() {
     setClaimToDelete(null)
   }
 
+  const handleAutoAssign = async () => {
+    const unassigned = filteredClaims.filter(
+      (c) => c.stage === 'Atribuir' && (c.analyst === 'Não Atribuído' || !c.analyst),
+    )
+
+    if (unassigned.length === 0) {
+      toast({
+        title: 'Ação não confirmada',
+        description: 'Nenhum lead pendente de atribuição foi encontrado na fase "Atribuir".',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const analystContacts = contacts.filter(
+      (c) => c.category?.toLowerCase() === 'analista' || c.role?.toLowerCase() === 'analista',
+    )
+
+    if (analystContacts.length === 0) {
+      toast({
+        title: 'Ação não confirmada',
+        description: 'Nenhum contato com a categoria "Analista" foi encontrado no sistema.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    toast({
+      title: 'Distribuindo...',
+      description: `Iniciando distribuição automática de ${unassigned.length} leads para ${analystContacts.length} analistas.`,
+      className: 'bg-blue-50 border-blue-200',
+    })
+
+    let assignedCount = 0
+    for (let i = 0; i < unassigned.length; i++) {
+      const claim = unassigned[i]
+      const analyst = analystContacts[i % analystContacts.length]
+      await useKanbanStore.getState().updateClaim(claim.id, {
+        analystId: analyst.id,
+        analyst: analyst.name,
+      })
+      assignedCount++
+    }
+
+    toast({
+      title: 'Ação executada com sucesso',
+      description: `Resultado: ${assignedCount} leads foram atribuídos automaticamente aos analistas.`,
+      className: 'bg-green-50 border-green-200 text-green-900',
+    })
+  }
+
   return (
     <div className="flex flex-col h-full bg-gray-50 overflow-hidden animate-in fade-in duration-300">
       <div className="bg-white border-b px-4 lg:px-6 py-4 flex flex-col xl:flex-row justify-between xl:items-center gap-4 shrink-0 shadow-sm z-10">
@@ -426,6 +478,14 @@ export function KanbanBoard() {
 
           <div className="flex-1"></div>
 
+          <Button
+            onClick={handleAutoAssign}
+            size="sm"
+            className="h-8 bg-white hover:bg-gray-50 text-indigo-600 border border-indigo-200 gap-1.5 shadow-sm font-medium"
+          >
+            <Users className="w-3.5 h-3.5" />
+            Distribuir
+          </Button>
           <Button
             onClick={() => setIsAddModalOpen(true)}
             size="sm"
