@@ -61,6 +61,9 @@ export default function IntakeDashboard() {
     setIsProcessingBatch(true)
     setProcessedCount(0)
 
+    // Busca clientes para associação automática no banco
+    const { data: clientsDb } = await supabase.from('clients').select('id, "RAZÃO SOCIAL"')
+
     const batchSize = 10
     let currentProcessed = 0
 
@@ -87,27 +90,36 @@ export default function IntakeDashboard() {
         .upsert(updates, { onConflict: 'id_ra' })
 
       if (!error) {
-        const claimsToInsert = batch.map((lead) => ({
-          ra: lead.id_ra,
-          stage: 'Atribuir',
-          status: 'pending',
-          placa_causador: lead.placa_causador || null,
-          causer_name: lead.causador_nome || null,
-          phone: lead.causador_telefone || lead.causador_whatsapp || null,
-          relato_acidente: lead.dinamica_acidente || null,
-          placa_onibus: lead.placa_onibus || null,
-          prefixo_onibus: lead.prefixo_onibus || null,
-          financial_total_value: lead.valor_dano_estimado || 0,
-          is_validated: true,
-          is_enriched: true,
-          date: lead.data_acidente
-            ? new Date(lead.data_acidente).toISOString()
-            : new Date().toISOString(),
-          causer_document: lead.causador_cpf || null,
-          causer_endereco: lead.causador_endereco || null,
-          tipo_veiculo_causador: lead.modelo_causador || null,
-          proprietario_veiculo_causador: lead.proprietario_veiculo_causador || null,
-        }))
+        const claimsToInsert = batch.map((lead) => {
+          const cName = (lead.cliente_nome || '').toLowerCase()
+          const matchedClient = clientsDb?.find((c) => {
+            const rs = (c['RAZÃO SOCIAL'] || '').toLowerCase()
+            return rs && cName && (rs.includes(cName) || cName.includes(rs))
+          })
+
+          return {
+            ra: lead.id_ra,
+            client_id: matchedClient?.id || null,
+            stage: 'Atribuir',
+            status: 'pending',
+            placa_causador: lead.placa_causador || null,
+            causer_name: lead.causador_nome || null,
+            phone: lead.causador_telefone || lead.causador_whatsapp || null,
+            relato_acidente: lead.dinamica_acidente || null,
+            placa_onibus: lead.placa_onibus || null,
+            prefixo_onibus: lead.prefixo_onibus || null,
+            financial_total_value: lead.valor_dano_estimado || 0,
+            is_validated: true,
+            is_enriched: true,
+            date: lead.data_acidente
+              ? new Date(lead.data_acidente).toISOString()
+              : new Date().toISOString(),
+            causer_document: lead.causador_cpf || null,
+            causer_endereco: lead.causador_endereco || null,
+            tipo_veiculo_causador: lead.modelo_causador || null,
+            proprietario_veiculo_causador: lead.proprietario_veiculo_causador || null,
+          }
+        })
 
         await supabase
           .from('claims')
