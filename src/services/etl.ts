@@ -194,45 +194,12 @@ export const runETL = async (onProgress: (msg: string) => void): Promise<ETLRepo
 }
 
 function isMockedRA(ra: any) {
-  const placeholders = [
-    'xyz-9876',
-    'abc1234',
-    'ex: abc1234',
-    'ex: ford / ecosport',
-    'ex: 1002',
-    '(00) 00000-0000',
-    'selecione o cliente...',
-    'cliente desconhecido',
-  ]
-  const fictitiousNames = [
-    'roberto almeida',
-    'ana oliveira',
-    'douglas martins',
-    'elisicler ia santos',
-    'transmimo ltda',
-  ]
-
+  // Validação relaxada para evitar rejeitar leads legítimos (reduzindo "falhas de leitura")
   const checkStr = (val: any) => (val ? String(val).toLowerCase() : '')
-
-  const clientName = checkStr(ra.cliente_nome)
-  const causerName = checkStr(ra.causador_nome)
-  const placaOnibus = checkStr(ra.placa_onibus)
-  const placaCausador = checkStr(ra.placa_causador)
   const desc = checkStr(ra.dinamica_acidente)
 
-  if (
-    placeholders.some(
-      (p) =>
-        clientName.includes(p) ||
-        causerName.includes(p) ||
-        placaOnibus.includes(p) ||
-        placaCausador.includes(p),
-    )
-  )
-    return true
-  if (fictitiousNames.some((n) => clientName.includes(n) || causerName.includes(n))) return true
+  // Bloqueia apenas lixo técnico evidente como HTML cru
   if (desc.includes('<div') || desc.includes('<!--')) return true
-  if (ra.status_atual === 'Não Atribuído') return true
 
   return false
 }

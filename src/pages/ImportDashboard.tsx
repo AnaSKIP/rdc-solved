@@ -59,7 +59,7 @@ export default function ImportDashboard() {
     try {
       const { data, error } = await supabase.functions.invoke('transferir-leads-corrigido')
       if (error) throw error
-      if (data?.sucesso) {
+      if (data?.sucesso || data?.total_transferidos !== undefined) {
         toast({
           title: 'Sucesso',
           description:

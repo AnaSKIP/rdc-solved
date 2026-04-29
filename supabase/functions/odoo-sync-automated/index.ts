@@ -53,46 +53,10 @@ Deno.serve(async (req: Request) => {
       const getVal = (val: any) => (val === false ? null : val)
 
       const isMockedData = (l: any) => {
-        const placeholders = [
-          'xyz-9876',
-          'abc1234',
-          'ex: abc1234',
-          'ex: ford / ecosport',
-          'ex: 1002',
-          '(00) 00000-0000',
-          'selecione o cliente...',
-          'cliente desconhecido',
-        ]
-        const fictitiousNames = [
-          'roberto almeida',
-          'ana oliveira',
-          'douglas martins',
-          'elisicler ia santos',
-          'transmimo ltda',
-        ]
-
+        // Validação relaxada para evitar descartar leads reais
         const checkStr = (v: any) => (v ? String(v).toLowerCase() : '')
-
-        const clientName = checkStr(l.company_name_enriched || l.partner_name || l.contact_name)
-        const causerName = checkStr(l.x_nome_causador || l.x_causador_nome)
-        const placaOnibus = checkStr(l.x_placa_onibus)
-        const placaCausador = checkStr(l.x_placa_causador)
         const desc = checkStr(l.description)
-
-        if (
-          placeholders.some(
-            (p) =>
-              clientName.includes(p) ||
-              causerName.includes(p) ||
-              placaOnibus.includes(p) ||
-              placaCausador.includes(p),
-          )
-        )
-          return true
-        if (fictitiousNames.some((n) => clientName.includes(n) || causerName.includes(n)))
-          return true
         if (desc.includes('<div') || desc.includes('<!--')) return true
-
         return false
       }
 

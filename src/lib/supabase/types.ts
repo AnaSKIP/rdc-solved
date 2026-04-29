@@ -759,39 +759,6 @@ export type Database = {
         }
         Relationships: []
       }
-      transferencia_log: {
-        Row: {
-          detalhes_erro: string | null
-          id_log: string
-          id_ra: string | null
-          lote_numero: number | null
-          mensagem: string | null
-          status: string | null
-          timestamp: string | null
-          tipo_acao: string | null
-        }
-        Insert: {
-          detalhes_erro?: string | null
-          id_log?: string
-          id_ra?: string | null
-          lote_numero?: number | null
-          mensagem?: string | null
-          status?: string | null
-          timestamp?: string | null
-          tipo_acao?: string | null
-        }
-        Update: {
-          detalhes_erro?: string | null
-          id_log?: string
-          id_ra?: string | null
-          lote_numero?: number | null
-          mensagem?: string | null
-          status?: string | null
-          timestamp?: string | null
-          tipo_acao?: string | null
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
@@ -1151,15 +1118,6 @@ export const Constants = {
 //   name: text (nullable)
 //   created_at: timestamp with time zone (not null, default: now())
 //   is_admin: boolean (nullable, default: false)
-// Table: transferencia_log
-//   id_log: uuid (not null, default: gen_random_uuid())
-//   timestamp: timestamp with time zone (nullable, default: now())
-//   tipo_acao: text (nullable)
-//   id_ra: text (nullable)
-//   lote_numero: integer (nullable)
-//   status: text (nullable)
-//   mensagem: text (nullable)
-//   detalhes_erro: text (nullable)
 
 // --- CONSTRAINTS ---
 // Table: CASOS DIFICEIS
@@ -1198,8 +1156,6 @@ export const Constants = {
 // Table: profiles
 //   FOREIGN KEY profiles_id_fkey: FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
 //   PRIMARY KEY profiles_pkey: PRIMARY KEY (id)
-// Table: transferencia_log
-//   PRIMARY KEY transferencia_log_pkey: PRIMARY KEY (id_log)
 
 // --- ROW LEVEL SECURITY POLICIES ---
 // Table: ai_knowledge_base
@@ -1316,10 +1272,6 @@ export const Constants = {
 //     USING: (auth.uid() = id)
 //   Policy "Users can update own profile" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = id)
-// Table: transferencia_log
-//   Policy "auth_all_transferencia_log" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: true
-//     WITH CHECK: true
 
 // --- WARNING: TABLES WITH RLS ENABLED BUT NO POLICIES ---
 // These tables have Row Level Security enabled but NO policies defined.

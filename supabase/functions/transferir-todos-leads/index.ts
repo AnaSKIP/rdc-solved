@@ -16,58 +16,50 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // AÇÃO 1: Buscar TODOS os registros em caixa_entrada_importacao
-    // com status_atual REPESCAGEM ou SEM ACORDO (que não tenham sido transferidos ainda)
+    // Busca até 3000 registros para evitar timeout em operações extremamente grandes
+    const { data: allLeads, error: fetchError } = await supabase
+      .from('caixa_entrada_importacao')
+      .select('*')
+      .neq('status_transferencia', 'TRANSFERIDO')
+      .limit(3000)
 
-    let allLeads: any[] = []
-    let hasMore = true
-    let offset = 0
-    const limit = 1000
+    if (fetchError) throw fetchError
 
-    while (hasMore) {
-      const { data, error } = await supabase
-        .from('caixa_entrada_importacao')
-        .select('*')
-        .in('status_atual', ['REPESCAGEM', 'SEM ACORDO', 'SEM_ACORDO', 'Sem Acordo'])
-        .neq('status_transferencia', 'TRANSFERIDO')
-        .range(offset, offset + limit - 1)
-
-      if (error) throw error
-
-      if (data && data.length > 0) {
-        allLeads.push(...data)
-        offset += limit
-      } else {
-        hasMore = false
-      }
-    }
-
-    // Se nenhum lead for encontrado, buscar ignorando a regra de 'TRANSFERIDO' caso seja primeira vez
-    if (allLeads.length === 0) {
-      const { data, error } = await supabase
-        .from('caixa_entrada_importacao')
-        .select('*')
-        .in('status_atual', ['REPESCAGEM', 'SEM ACORDO', 'SEM_ACORDO', 'Sem Acordo'])
-
-      if (error) throw error
-      if (data) allLeads = data
+    if (!allLeads || allLeads.length === 0) {
+      return new Response(
+        JSON.stringify({
+          total_transferidos: 0,
+          total_ignorados: 0,
+          total_erros: 0,
+          mensagem: 'Nenhum lead pendente encontrado.',
+        }),
+        {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        },
+      )
     }
 
     let transferidos = 0
     let erros = 0
-    const mensagensErros: string[] = []
+    let ignorados = 0
 
     const validLeads: any[] = []
-    const invalidIds: string[] = []
     const successfullyTransferredIds: string[] = []
 
     for (const lead of allLeads) {
-      // Valida campos obrigatórios: id_ra, cliente_nome, placa_onibus, causador_cpf
-      const isValid = lead.id_ra && lead.cliente_nome && lead.placa_onibus && lead.causador_cpf
+      // Valida apenas RA para evitar rejeição incorreta de leads legítimos (reduz falhas de leitura)
+      const isValid = !!lead.id_ra
 
       if (isValid) {
+        // Regra do CNPJ: Diferenciar RAs repetidos
+        const cnpjStr = lead.cliente_cnpj ? String(lead.cliente_cnpj).replace(/\D/g, '') : ''
+        let finalRa = String(lead.id_ra)
+        if (cnpjStr && !finalRa.includes(cnpjStr)) {
+          finalRa = `${finalRa}-${cnpjStr}`
+        }
+
         validLeads.push({
-          id_ra: lead.id_ra,
+          id_ra: finalRa,
           cliente_nome: lead.cliente_nome,
           cliente_cnpj: lead.cliente_cnpj,
           placa_onibus: lead.placa_onibus,
@@ -89,47 +81,64 @@ Deno.serve(async (req: Request) => {
           valor_dano_estimado: lead.valor_dano_estimado,
           documentos_anexados: lead.documentos_anexados,
           data_criacao: lead.data_criacao,
-          status_processamento: 'NOVO', // Status obrigatório
+          status_processamento: 'NOVO',
           status_conformidade: 'PENDENTE',
         })
         successfullyTransferredIds.push(lead.id_ra)
       } else {
         erros++
-        invalidIds.push(lead.id_ra)
-        mensagensErros.push(`RA ${lead.id_ra} inválido: faltam campos obrigatórios.`)
       }
     }
 
-    // Inserir lotes na caixa_entrada
-    const batchSize = 500
+    // Otimização de lote
+    const batchSize = 200
     for (let i = 0; i < validLeads.length; i += batchSize) {
       const batch = validLeads.slice(i, i + batchSize)
-      const { error: insertError } = await supabase
-        .from('caixa_entrada')
-        .upsert(batch, { onConflict: 'id_ra' })
 
-      if (insertError) {
-        console.error('Erro ao inserir lote:', insertError)
+      const batchRAs = batch.map((b) => b.id_ra)
+      const { data: existing, error: checkError } = await supabase
+        .from('caixa_entrada')
+        .select('id_ra')
+        .in('id_ra', batchRAs)
+
+      if (checkError) {
+        console.error('Check error:', checkError)
         erros += batch.length
-      } else {
-        transferidos += batch.length
+        continue
+      }
+
+      const existingRAs = new Set(existing?.map((e) => e.id_ra) || [])
+      const newLeads = batch.filter((b) => !existingRAs.has(b.id_ra))
+
+      ignorados += batch.length - newLeads.length
+
+      if (newLeads.length > 0) {
+        const { error: upsertError } = await supabase
+          .from('caixa_entrada')
+          .upsert(newLeads, { onConflict: 'id_ra', ignoreDuplicates: true })
+
+        if (upsertError) {
+          erros += newLeads.length
+        } else {
+          transferidos += newLeads.length
+        }
       }
     }
 
-    // Atualizar status_transferencia na tabela origem
     for (let i = 0; i < successfullyTransferredIds.length; i += batchSize) {
       const batchIds = successfullyTransferredIds.slice(i, i + batchSize)
       await supabase
         .from('caixa_entrada_importacao')
-        .update({ status_transferencia: 'TRANSFERIDO' })
+        .update({ status_transferencia: 'TRANSFERIDO', status_atual: 'TRANSFERIDO' })
         .in('id_ra', batchIds)
     }
 
     return new Response(
       JSON.stringify({
         total_transferidos: transferidos,
+        total_ignorados: ignorados,
         total_erros: erros,
-        mensagem: `${transferidos} leads transferidos com sucesso para a Caixa de Entrada.`,
+        mensagem: `${transferidos} leads transferidos com sucesso. ${ignorados} foram ignorados (já existiam).`,
       }),
       {
         headers: { 'Content-Type': 'application/json', ...corsHeaders },

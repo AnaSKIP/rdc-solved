@@ -16,93 +16,119 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // AÇÃO 1: Conecta ao Supabase e busca TODOS os registros em caixa_entrada_importacao
-    let allLeads: any[] = []
-    let hasMore = true
-    let offset = 0
-    const limit = 1000
+    // AÇÃO 1: Conecta ao Supabase e busca registros não transferidos em caixa_entrada_importacao
+    const { data: allLeads, error: fetchError } = await supabase
+      .from('caixa_entrada_importacao')
+      .select('*')
+      .neq('status_transferencia', 'TRANSFERIDO')
+      .limit(3000)
 
-    while (hasMore) {
-      const { data, error } = await supabase
-        .from('caixa_entrada_importacao')
-        .select('*')
-        .neq('status_transferencia', 'TRANSFERIDO')
-        .range(offset, offset + limit - 1)
+    if (fetchError) throw fetchError
 
-      if (error) throw error
-
-      if (data && data.length > 0) {
-        allLeads.push(...data)
-        offset += limit
-      } else {
-        hasMore = false
-      }
-    }
-
-    if (allLeads.length === 0) {
-      const { data, error } = await supabase.from('caixa_entrada_importacao').select('*')
-
-      if (error) throw error
-      if (data) allLeads = data
+    if (!allLeads || allLeads.length === 0) {
+      return new Response(
+        JSON.stringify({
+          sucesso: true,
+          total_transferidos: 0,
+          total_ignorados_existentes: 0,
+          total_erros: 0,
+          mensagem: 'Nenhum lead pendente de transferência encontrado.',
+        }),
+        {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        },
+      )
     }
 
     let transferidos = 0
     let erros = 0
+    let ignorados = 0
 
     const validLeads: any[] = []
     const successfullyTransferredIds: string[] = []
 
     for (const lead of allLeads) {
-      if (lead.id_ra) {
-        // Extrai dados e insere com status NOVO
-        validLeads.push({
-          id_ra: lead.id_ra,
-          cliente_nome: lead.cliente_nome,
-          cliente_cnpj: lead.cliente_cnpj,
-          placa_onibus: lead.placa_onibus,
-          prefixo_onibus: lead.prefixo_onibus,
-          causador_nome: lead.causador_nome,
-          causador_cpf: lead.causador_cpf,
-          causador_telefone: lead.causador_telefone,
-          causador_whatsapp: lead.causador_whatsapp,
-          causador_endereco: lead.causador_endereco,
-          proprietario_veiculo_causador: lead.proprietario_veiculo_causador,
-          placa_causador: lead.placa_causador,
-          modelo_causador: lead.modelo_causador,
-          ano_causador: lead.ano_causador,
-          cor_causador: lead.cor_causador,
-          data_acidente: lead.data_acidente,
-          hora_acidente: lead.hora_acidente,
-          local_acidente: lead.local_acidente,
-          dinamica_acidente: lead.dinamica_acidente,
-          valor_dano_estimado: lead.valor_dano_estimado,
-          documentos_anexados: lead.documentos_anexados,
-          data_criacao: lead.data_criacao,
-          status_processamento: 'NOVO', // Definido como NOVO
-          status_conformidade: 'PENDENTE',
-        })
-        successfullyTransferredIds.push(lead.id_ra)
-      } else {
+      if (!lead.id_ra) {
         erros++
+        continue
       }
+
+      // Regra de Unicidade: Combinar RA e CNPJ para diferenciar RAs repetidos
+      const cnpjStr = lead.cliente_cnpj ? String(lead.cliente_cnpj).replace(/\D/g, '') : ''
+      let finalRa = String(lead.id_ra)
+      if (cnpjStr && !finalRa.includes(cnpjStr)) {
+        finalRa = `${finalRa}-${cnpjStr}`
+      }
+
+      validLeads.push({
+        id_ra: finalRa,
+        cliente_nome: lead.cliente_nome,
+        cliente_cnpj: lead.cliente_cnpj,
+        placa_onibus: lead.placa_onibus,
+        prefixo_onibus: lead.prefixo_onibus,
+        causador_nome: lead.causador_nome,
+        causador_cpf: lead.causador_cpf,
+        causador_telefone: lead.causador_telefone,
+        causador_whatsapp: lead.causador_whatsapp,
+        causador_endereco: lead.causador_endereco,
+        proprietario_veiculo_causador: lead.proprietario_veiculo_causador,
+        placa_causador: lead.placa_causador,
+        modelo_causador: lead.modelo_causador,
+        ano_causador: lead.ano_causador,
+        cor_causador: lead.cor_causador,
+        data_acidente: lead.data_acidente,
+        hora_acidente: lead.hora_acidente,
+        local_acidente: lead.local_acidente,
+        dinamica_acidente: lead.dinamica_acidente,
+        valor_dano_estimado: lead.valor_dano_estimado,
+        documentos_anexados: lead.documentos_anexados,
+        data_criacao: lead.data_criacao,
+        status_processamento: 'NOVO',
+        status_conformidade: 'PENDENTE',
+      })
+
+      // Salva o ID original para atualizar depois
+      successfullyTransferredIds.push(lead.id_ra)
     }
 
-    const batchSize = 500
+    // Processamento em lotes (Bulk) para evitar timeout
+    const batchSize = 200
     for (let i = 0; i < validLeads.length; i += batchSize) {
       const batch = validLeads.slice(i, i + batchSize)
-      const { error: insertError } = await supabase
-        .from('caixa_entrada')
-        .upsert(batch, { onConflict: 'id_ra' })
+      const batchRAs = batch.map((b) => b.id_ra)
 
-      if (insertError) {
-        console.error('Erro ao inserir lote:', insertError)
+      // Importação Inteligente (Check-Exist)
+      const { data: existing, error: checkError } = await supabase
+        .from('caixa_entrada')
+        .select('id_ra')
+        .in('id_ra', batchRAs)
+
+      if (checkError) {
+        console.error('Check error:', checkError)
         erros += batch.length
-      } else {
-        transferidos += batch.length
+        continue
+      }
+
+      const existingRAs = new Set(existing?.map((e) => e.id_ra) || [])
+      const newLeads = batch.filter((b) => !existingRAs.has(b.id_ra))
+
+      ignorados += batch.length - newLeads.length
+
+      if (newLeads.length > 0) {
+        const { error: upsertError } = await supabase
+          .from('caixa_entrada')
+          .upsert(newLeads, { onConflict: 'id_ra', ignoreDuplicates: true })
+
+        if (upsertError) {
+          console.error('Upsert error:', upsertError)
+          erros += newLeads.length
+        } else {
+          transferidos += newLeads.length
+        }
       }
     }
 
-    // Atualiza caixa_entrada_importacao.status = TRANSFERIDO
+    // Atualiza tabela origem de forma segmentada
     for (let i = 0; i < successfullyTransferredIds.length; i += batchSize) {
       const batchIds = successfullyTransferredIds.slice(i, i + batchSize)
       await supabase
@@ -111,12 +137,13 @@ Deno.serve(async (req: Request) => {
         .in('id_ra', batchIds)
     }
 
-    // Retorna conforme esperado
     return new Response(
       JSON.stringify({
         sucesso: true,
         total_transferidos: transferidos,
-        mensagem: `${transferidos} leads transferidos com sucesso para a Caixa de Entrada.`,
+        total_ignorados_existentes: ignorados,
+        total_erros: erros,
+        mensagem: `${transferidos} leads transferidos com sucesso. ${ignorados} foram ignorados pois já existiam.`,
       }),
       {
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
