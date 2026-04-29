@@ -4,6 +4,16 @@ import { useToast } from '@/hooks/use-toast'
 import useContactStore from '@/stores/useContactStore'
 import { PipelineStage } from './useCaseStore'
 
+const PIPELINE_STAGES = [
+  'Atribuir',
+  'Em análise',
+  'Negociação',
+  'Acordo Feito',
+  'Concluído',
+  'Sem acordo',
+  'Repescagem',
+]
+
 export interface KanbanClaim {
   id: string
   raNumber: string

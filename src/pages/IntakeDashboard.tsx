@@ -75,7 +75,10 @@ export default function IntakeDashboard() {
         status_processamento: 'ENRIQUECIDO',
         historico_processamento: [
           ...(Array.isArray(lead.historico_processamento) ? lead.historico_processamento : []),
-          { data: new Date().toISOString(), acao: 'Enriquecimento em lote via IA concluído' },
+          {
+            data: new Date().toISOString(),
+            acao: 'Enriquecimento em lote via IA concluído e distribuído para Kanban',
+          },
         ],
       }))
 
@@ -84,6 +87,32 @@ export default function IntakeDashboard() {
         .upsert(updates, { onConflict: 'id_ra' })
 
       if (!error) {
+        const claimsToInsert = batch.map((lead) => ({
+          ra: lead.id_ra,
+          stage: 'Atribuir',
+          status: 'pending',
+          placa_causador: lead.placa_causador || null,
+          causer_name: lead.causador_nome || null,
+          phone: lead.causador_telefone || lead.causador_whatsapp || null,
+          relato_acidente: lead.dinamica_acidente || null,
+          placa_onibus: lead.placa_onibus || null,
+          prefixo_onibus: lead.prefixo_onibus || null,
+          financial_total_value: lead.valor_dano_estimado || 0,
+          is_validated: true,
+          is_enriched: true,
+          date: lead.data_acidente
+            ? new Date(lead.data_acidente).toISOString()
+            : new Date().toISOString(),
+          causer_document: lead.causador_cpf || null,
+          causer_endereco: lead.causador_endereco || null,
+          tipo_veiculo_causador: lead.modelo_causador || null,
+          proprietario_veiculo_causador: lead.proprietario_veiculo_causador || null,
+        }))
+
+        await supabase
+          .from('claims')
+          .upsert(claimsToInsert, { onConflict: 'ra,date,placa_causador', ignoreDuplicates: true })
+
         currentProcessed += batch.length
         setProcessedCount(currentProcessed)
       }
