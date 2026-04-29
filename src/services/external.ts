@@ -20,4 +20,25 @@ export const fetchCNPJ = async (cnpj: string) => {
   }
 }
 
-// Remoção completa dos mocks simulateOCR e simulateInfocar para garantir dados apenas 100% reais do backend.
+// Restored empty mocks to prevent build errors in Sandbox.tsx and CaseHeader.tsx
+export const simulateOCR = async (file?: any) => {
+  return {
+    cliente: null,
+    placaOnibus: null,
+    prefixo: null,
+    causerName: null,
+    placaCausador: null,
+    marcaModelo: null,
+    causerDocument: null,
+    causerPhone: null,
+    dinamica: null,
+  }
+}
+
+export const simulateInfocar = async (placa?: string) => {
+  return {
+    success: false,
+    message: 'Mock removed',
+    data: null,
+  }
+}
