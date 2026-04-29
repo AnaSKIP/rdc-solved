@@ -59,18 +59,24 @@ export default function ImportDashboard() {
     try {
       const { data, error } = await supabase.functions.invoke('transferir-leads-corrigido')
       if (error) throw error
-      if (data?.sucesso || data?.total_transferidos !== undefined) {
+
+      if (data?.sucesso) {
         toast({
-          title: 'Sucesso',
-          description:
-            data.mensagem ||
-            `${data.total_transferidos} leads transferidos com sucesso para a Caixa de Entrada.`,
+          title: 'Transferência Concluída',
+          description: (
+            <div className="mt-2 space-y-1">
+              <p>
+                <b>Registros Movidos:</b> {data.total_movidos}
+              </p>
+              <p>
+                <b>Total Final na Caixa de Entrada:</b> {data.total_final_caixa_entrada}
+              </p>
+            </div>
+          ),
+          className: 'bg-green-50 border-green-200 text-green-900',
         })
       } else {
-        toast({
-          title: 'Aviso',
-          description: data?.mensagem || 'Processamento concluído com observações.',
-        })
+        throw new Error(data?.error || 'Falha na transferência')
       }
     } catch (err: any) {
       toast({

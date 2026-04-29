@@ -194,13 +194,7 @@ export const runETL = async (onProgress: (msg: string) => void): Promise<ETLRepo
 }
 
 function isMockedRA(ra: any) {
-  // Validação relaxada para evitar rejeitar leads legítimos (reduzindo "falhas de leitura")
-  const checkStr = (val: any) => (val ? String(val).toLowerCase() : '')
-  const desc = checkStr(ra.dinamica_acidente)
-
-  // Bloqueia apenas lixo técnico evidente como HTML cru
-  if (desc.includes('<div') || desc.includes('<!--')) return true
-
+  // Cliente solicitou remover todas as validações que descartam dados
   return false
 }
 
@@ -220,7 +214,7 @@ function transformRA(ra: any) {
       placa_causador: cleanPlate(ra.placa_causador),
     }
   } catch {
-    return null
+    return ra // Retorna os dados puros se a formatação falhar, nunca descarta o registro
   }
 }
 
