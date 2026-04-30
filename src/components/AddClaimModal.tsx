@@ -29,6 +29,7 @@ export function AddClaimModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
 
   const [ra, setRa] = useState('')
   const [clientId, setClientId] = useState('')
+  const [baseRa, setBaseRa] = useState('')
   const [causerName, setCauserName] = useState('')
   const [placaCausador, setPlacaCausador] = useState('')
   const [analystId, setAnalystId] = useState('')
@@ -91,11 +92,25 @@ export function AddClaimModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
               <Label htmlFor="ra">Número do RA *</Label>
               <input
                 id="ra"
-                value={ra}
-                onChange={(e) => setRa(e.target.value)}
-                placeholder="Ex: RA-12345"
+                value={baseRa}
+                onChange={(e) => {
+                  setBaseRa(e.target.value)
+                  const client = contacts?.find((c: any) => c.id.toString() === clientId)
+                  const cnpj = client?.cnpj || client?.CNPJ
+                  if (cnpj) {
+                    setRa(`${e.target.value}-${cnpj}`)
+                  } else {
+                    setRa(e.target.value)
+                  }
+                }}
+                placeholder="Ex: 1234/2024"
                 className={inputClass}
               />
+              {ra !== baseRa && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Pré-visualização: <span className="font-semibold">{ra}</span>
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="valor">Valor Estimado (R$)</Label>
@@ -113,7 +128,19 @@ export function AddClaimModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
 
           <div className="space-y-2">
             <Label>Cliente</Label>
-            <Select value={clientId} onValueChange={setClientId}>
+            <Select
+              value={clientId}
+              onValueChange={(val) => {
+                setClientId(val)
+                const client = contacts?.find((c: any) => c.id.toString() === val)
+                const cnpj = client?.cnpj || client?.CNPJ
+                if (cnpj) {
+                  setRa(`${baseRa}-${cnpj}`)
+                } else {
+                  setRa(baseRa)
+                }
+              }}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione um cliente" />
               </SelectTrigger>

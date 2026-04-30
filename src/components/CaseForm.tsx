@@ -394,10 +394,20 @@ export function CaseForm() {
   })
 
   const displayRaStr = selectedClaim?.raNumber?.toString() || raNumber?.toString() || 'S/N'
-  const { ra: displayRa, cnpj: displayCnpj } = formatRaDisplay(
-    displayRaStr,
-    selectedClaim?.companyCnpj || currentClient?.cnpj,
-  )
+
+  let baseRa = displayRaStr
+  const displayCnpj = selectedClaim?.companyCnpj || currentClient?.cnpj || currentClient?.CNPJ || ''
+
+  if (displayCnpj && baseRa.includes(displayCnpj)) {
+    baseRa = baseRa.replace(`-${displayCnpj}`, '').trim()
+  }
+  if (!baseRa.toUpperCase().startsWith('RA')) {
+    baseRa = `RA - ${baseRa}`
+  } else if (baseRa.toUpperCase().startsWith('RA') && !baseRa.includes(' - ')) {
+    baseRa = baseRa.replace(/^RA\s*-?\s*/i, 'RA - ')
+  }
+
+  const displayRa = baseRa
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1000px] mx-auto">
@@ -448,41 +458,19 @@ export function CaseForm() {
             {displayCnpj && (
               <div className="text-sm text-gray-500 font-medium flex items-center gap-1">
                 <span className="bg-gray-100 px-2 py-0.5 rounded text-gray-600 border border-gray-200 shadow-sm">
-                  CNPJ: {displayCnpj}
+                  CNPJ - {displayCnpj}
                 </span>
               </div>
             )}
           </div>
 
-          {selectedClaim?.attachments && selectedClaim.attachments.length > 0 && (
-            <div className="mt-2 p-3 bg-blue-50/50 rounded-lg border border-blue-100 shadow-sm">
-              <div className="flex items-center gap-2 mb-2 text-xs font-bold text-blue-900 uppercase tracking-wider">
-                <Paperclip className="w-3.5 h-3.5" /> Anexos Disponíveis
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {selectedClaim.attachments.map((att) => (
-                  <Button
-                    key={att.id}
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs bg-white text-blue-700 border-blue-200 hover:bg-blue-50 shadow-sm transition-colors"
-                    onClick={() => window.open(att.url, '_blank')}
-                  >
-                    <FileText className="w-3.5 h-3.5 mr-1.5" />
-                    {att.file_name}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="flex flex-wrap gap-8 mt-4 bg-gray-50/80 p-4 rounded-lg border border-gray-100 shadow-inner">
+          <div className="flex flex-wrap gap-8 mt-4 bg-green-50/80 p-4 rounded-lg border border-green-200 shadow-sm">
             <div className="flex-1 min-w-[200px]">
-              <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1 flex items-center gap-1">
-                <DollarSign className="w-3 h-3 text-green-600" /> Receita Esperada (RA)
+              <div className="text-[11px] text-green-800 font-bold uppercase tracking-widest mb-1 flex items-center gap-1">
+                <DollarSign className="w-4 h-4 text-green-600" /> Receita Esperada (RA)
               </div>
-              <div className="flex items-center gap-2 max-w-[200px]">
-                <span className="text-xl text-gray-900 font-medium">R$</span>
+              <div className="flex items-center gap-2 max-w-[250px]">
+                <span className="text-2xl text-green-900 font-bold">R$</span>
                 <Input
                   type="number"
                   value={assumedClaimValue || ''}
@@ -490,16 +478,16 @@ export function CaseForm() {
                   onBlur={() =>
                     handleSaveData({ financialTotalValue: assumedClaimValue }, 'Receita atualizada')
                   }
-                  className="h-9 text-lg font-semibold bg-white border-gray-300 shadow-sm"
+                  className="h-10 text-xl font-bold bg-white border-green-300 shadow-sm text-green-900 focus-visible:ring-green-500"
                   placeholder="0.00"
                 />
               </div>
             </div>
             <div className="flex-1 min-w-[200px]">
-              <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1 flex items-center gap-1">
-                <DollarSign className="w-3 h-3 text-purple-600" /> Previsão de Ganho (Analista)
+              <div className="text-[11px] text-purple-800 font-bold uppercase tracking-widest mb-1 flex items-center gap-1">
+                <DollarSign className="w-4 h-4 text-purple-600" /> Previsão de Ganho (Analista)
               </div>
-              <div className="text-xl flex items-center gap-2 text-purple-700 font-bold">
+              <div className="text-2xl flex items-center gap-2 text-purple-800 font-bold">
                 {expectedGain}
                 <Badge
                   variant="secondary"
@@ -514,110 +502,113 @@ export function CaseForm() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-4">
-          <div>
+          <div className="space-y-6">
             <CaseTags />
 
-            <Field
-              label="Classificação"
-              value={
-                <Select value={claimCategory} onValueChange={(v) => setClaimCategory(v as any)}>
-                  <SelectTrigger className="h-8 text-sm bg-white border-gray-300 font-medium w-full">
-                    <SelectValue placeholder="Selecione..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Postes (EDP, Cemig, Light, Enel)">
-                      Postes (EDP, Cemig, Light, Enel)
-                    </SelectItem>
-                    <SelectItem value="Ônibus">Ônibus</SelectItem>
-                    <SelectItem value="Não Classificado">Não Classificado</SelectItem>
-                  </SelectContent>
-                </Select>
-              }
-            />
-            <Field
-              label="CLIENTE"
-              value={
-                <Popover open={openCliente} onOpenChange={setOpenCliente}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={openCliente}
-                      className="w-full justify-between h-8 text-sm font-medium bg-white border-gray-300 hover:bg-gray-50 text-solved"
-                    >
-                      <span className="truncate font-semibold">{displayClientName}</span>
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[300px] p-0" align="start">
-                    <Command>
-                      <CommandInput placeholder="Buscar cliente..." className="h-9 text-sm" />
-                      <CommandList>
-                        <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
-                        <CommandGroup>
-                          {clientes.map((c) => (
-                            <CommandItem
-                              key={c.id}
-                              value={c.name}
-                              onSelect={() => {
-                                if (selectedClaim?.id) {
-                                  const newCnpj = c.cnpj || ''
-                                  let newRa = selectedClaim.raNumber || ''
+            <div>
+              <Field
+                label="Classificação"
+                value={
+                  <Select value={claimCategory} onValueChange={(v) => setClaimCategory(v as any)}>
+                    <SelectTrigger className="h-8 text-sm bg-white border-gray-300 font-medium w-full">
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Postes (EDP, Cemig, Light, Enel)">
+                        Postes (EDP, Cemig, Light, Enel)
+                      </SelectItem>
+                      <SelectItem value="Ônibus">Ônibus</SelectItem>
+                      <SelectItem value="Não Classificado">Não Classificado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                }
+              />
+              <Field
+                label="CLIENTE"
+                value={
+                  <Popover open={openCliente} onOpenChange={setOpenCliente}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={openCliente}
+                        className="w-full justify-between h-8 text-sm font-medium bg-white border-gray-300 hover:bg-gray-50 text-solved"
+                      >
+                        <span className="truncate font-semibold">{displayClientName}</span>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Buscar cliente..." className="h-9 text-sm" />
+                        <CommandList>
+                          <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
+                          <CommandGroup>
+                            {clientes.map((c) => (
+                              <CommandItem
+                                key={c.id}
+                                value={c.name}
+                                onSelect={() => {
+                                  if (selectedClaim?.id) {
+                                    const newCnpj = c.cnpj || ''
+                                    let newRa = selectedClaim.raNumber || ''
 
-                                  let baseRa = newRa
-                                  if (
-                                    selectedClaim.companyCnpj &&
-                                    newRa.includes(selectedClaim.companyCnpj)
-                                  ) {
-                                    baseRa = newRa.replace(`-${selectedClaim.companyCnpj}`, '')
-                                  } else {
-                                    const parts = newRa.split('-')
-                                    if (parts.length > 2) {
-                                      baseRa = parts.slice(0, 2).join('-').trim()
+                                    let baseRa = newRa
+                                    if (
+                                      selectedClaim.companyCnpj &&
+                                      newRa.includes(selectedClaim.companyCnpj)
+                                    ) {
+                                      baseRa = newRa.replace(`-${selectedClaim.companyCnpj}`, '')
+                                    } else {
+                                      const parts = newRa.split('-')
+                                      if (parts.length > 2) {
+                                        baseRa = parts.slice(0, 2).join('-').trim()
+                                      }
                                     }
-                                  }
 
-                                  if (newCnpj && !baseRa.includes(newCnpj)) {
-                                    newRa = `${baseRa}-${newCnpj}`
-                                  } else {
-                                    newRa = baseRa
-                                  }
+                                    if (newCnpj && !baseRa.includes(newCnpj)) {
+                                      newRa = `${baseRa}-${newCnpj}`
+                                    } else {
+                                      newRa = baseRa
+                                    }
 
-                                  updateClaim(selectedClaim.id, {
-                                    companyId: c.id,
-                                    companyName: c.name,
-                                    companyCnpj: newCnpj,
-                                    raNumber: newRa,
-                                  })
-                                  setRaNumber(newRa)
-                                }
-                                setOpenCliente(false)
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  'mr-2 h-4 w-4',
-                                  currentClient?.id === c.id ? 'opacity-100' : 'opacity-0',
-                                )}
-                              />
-                              {c.name}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              }
-            />
-            <Field
-              label="Analista"
-              value={
-                <span className="text-gray-900 font-medium">
-                  {analystName?.toString() || 'N/A'}
-                </span>
-              }
-            />
+                                    updateClaim(selectedClaim.id, {
+                                      companyId: c.id,
+                                      companyName: c.name,
+                                      companyCnpj: newCnpj,
+                                      raNumber: newRa,
+                                    })
+                                    setRaNumber(newRa)
+                                    setClientClaimNumberLocal(newCnpj)
+                                  }
+                                  setOpenCliente(false)
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    'mr-2 h-4 w-4',
+                                    currentClient?.id === c.id ? 'opacity-100' : 'opacity-0',
+                                  )}
+                                />
+                                {c.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                }
+              />
+              <Field
+                label="Analista"
+                value={
+                  <span className="text-gray-900 font-medium">
+                    {analystName?.toString() || 'N/A'}
+                  </span>
+                }
+              />
+            </div>
 
             <div className="mt-6 mb-2 flex items-center gap-2 text-sm font-bold text-gray-800 uppercase tracking-wider border-b pb-1">
               <Bus className="w-4 h-4 text-solved" /> Dados do Veículo Cliente

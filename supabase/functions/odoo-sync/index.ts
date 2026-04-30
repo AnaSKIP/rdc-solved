@@ -213,7 +213,30 @@ Deno.serve(async (req: Request) => {
     const searchData = await searchRes.json()
     if (searchData.error) throw new Error(searchData.error.data.message)
 
-    const leads = searchData.result || []
+    let leads = searchData.result || []
+
+    // FILTRO DE DUPLICIDADE: Remove os que já existem no Supabase (Claims)
+    if (leads.length > 0) {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      const supabaseAdmin = createClient(supabaseUrl, supabaseKey)
+
+      const raList = leads.map((l: any) => String(l.x_ra || l.name || `RA-${l.id}`).trim())
+
+      const { data: existingClaims } = await supabaseAdmin
+        .from('claims')
+        .select('ra')
+        .in('ra', raList)
+
+      if (existingClaims && existingClaims.length > 0) {
+        const existingRas = new Set(existingClaims.map((c: any) => c.ra))
+        leads = leads.filter((l: any) => {
+          const lRa = String(l.x_ra || l.name || `RA-${l.id}`).trim()
+          return !existingRas.has(lRa)
+        })
+      }
+    }
+
     const leadIds = leads.map((l: any) => l.id)
 
     // 3.5. Fetch Partners (Contacts) to enrich leads with missing data

@@ -216,8 +216,6 @@ export function CaseHeader() {
             Enriquecer (IA)
           </Button>
 
-          <WhatsAppTemplateSidebar />
-
           <div className="border-l pl-2 ml-1 flex items-center gap-2">
             <Select defaultValue="douglas">
               <SelectTrigger className="h-8 text-xs border-gray-200 bg-white shadow-sm w-[130px]">
