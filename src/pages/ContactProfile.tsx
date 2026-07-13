@@ -18,6 +18,9 @@ import {
   CheckCircle,
   Eye,
   RefreshCw,
+  Upload,
+  Trash2,
+  Wallet,
 } from 'lucide-react'
 import useContactStore from '@/stores/useContactStore'
 import { Badge } from '@/components/ui/badge'
@@ -28,6 +31,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { FilePreviewModal } from '@/components/FilePreviewModal'
 import { fetchCNPJ } from '@/services/external'
+import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
 
 export default function ContactProfile() {
@@ -35,9 +39,12 @@ export default function ContactProfile() {
   const navigate = useNavigate()
   const { contacts, contactClaims, updateContactClaim, updateRecord } = useContactStore()
   const { toast } = useToast()
+  const { isAdmin } = useAuth()
 
   const foundContact = contacts.find((c) => c.id === id)
   const isCauser = id?.startsWith('causer-') || foundContact?.category === 'Causador'
+  const isAnalyst = foundContact?.category === 'Colaborador Analista'
+  const analystData = foundContact?.originalData
 
   const contact = foundContact || {
     id: id || '',
@@ -91,6 +98,22 @@ export default function ContactProfile() {
   } | null>(null)
   const [isEnriching, setIsEnriching] = useState(false)
 
+  const [docIdentidadeInput, setDocIdentidadeInput] = useState(
+    analystData?.documento_identidade_url || '',
+  )
+  const [comprovanteInput, setComprovanteInput] = useState(
+    analystData?.comprovante_endereco_url || '',
+  )
+  const [comissaoAbaixoInput, setComissaoAbaixoInput] = useState(
+    analystData?.['COMISSAO - 0 A 9.999,99']?.toString() || '',
+  )
+  const [comissaoAcimaInput, setComissaoAcimaInput] = useState(
+    analystData?.['COMISSAO - 9.999,99 ACIMA']?.toString() || '',
+  )
+  const [mensalidadeInput, setMensalidadeInput] = useState(
+    analystData?.MENSALIDADE?.toString() || '',
+  )
+
   useEffect(() => {
     if (claimDetails) {
       setPlacaInput(claimDetails.placaCausador || '')
@@ -103,6 +126,16 @@ export default function ContactProfile() {
       setCommissionInput(contact.commissionRate.toString())
     }
   }, [contact.commissionRate])
+
+  useEffect(() => {
+    if (analystData) {
+      setDocIdentidadeInput(analystData.documento_identidade_url || '')
+      setComprovanteInput(analystData.comprovante_endereco_url || '')
+      setComissaoAbaixoInput(analystData['COMISSAO - 0 A 9.999,99']?.toString() || '')
+      setComissaoAcimaInput(analystData['COMISSAO - 9.999,99 ACIMA']?.toString() || '')
+      setMensalidadeInput(analystData.MENSALIDADE?.toString() || '')
+    }
+  }, [analystData])
 
   const handleCopyLink = () => {
     if (contact.driveLink) {
@@ -139,17 +172,59 @@ export default function ContactProfile() {
       })
       return
     }
-
     if (id && foundContact) {
-      const type = contact.category === 'Cliente' ? 'clients' : 'analysts'
-      const key = contact.category === 'Cliente' ? 'COMISSÃO' : 'COMISSAO - 0 A 9.999,99'
-      updateRecord(type, id, { [key]: val })
+      updateRecord('clients', id, { COMISSÃO: val })
       toast({
         title: 'Dados Financeiros Atualizados',
         description: `Taxa de comissão salva com sucesso: ${val}%.`,
         className: 'bg-green-50 border-green-200 text-green-900',
       })
     }
+  }
+
+  const handleSaveAnalystField = (field: string, value: string, label: string) => {
+    if (!id || !foundContact) return
+    const numVal = parseFloat(value)
+    const payload: any = { [field]: isNaN(numVal) ? null : numVal }
+    updateRecord('analysts', id, payload)
+    toast({
+      title: 'Dados Financeiros Atualizados',
+      description: `${label} salvo com sucesso.`,
+      className: 'bg-green-50 border-green-200 text-green-900',
+    })
+  }
+
+  const handleSaveDocument = (
+    field: 'documento_identidade_url' | 'comprovante_endereco_url',
+    value: string,
+  ) => {
+    if (!id || !foundContact) return
+    updateRecord('analysts', id, { [field]: value || null })
+    toast({
+      title: 'Documento Salvo',
+      description: 'O link do documento foi salvo com sucesso.',
+      className: 'bg-green-50 border-green-200 text-green-900',
+    })
+  }
+
+  const handleRemoveDocument = (field: 'documento_identidade_url' | 'comprovante_endereco_url') => {
+    if (!isAdmin) {
+      toast({
+        title: 'Permissão Negada',
+        description: 'Autorização de um Administrador é necessária.',
+        variant: 'destructive',
+      })
+      return
+    }
+    if (!id || !foundContact) return
+    updateRecord('analysts', id, { [field]: null })
+    if (field === 'documento_identidade_url') setDocIdentidadeInput('')
+    else setComprovanteInput('')
+    toast({
+      title: 'Documento Removido',
+      description: 'O documento foi removido com sucesso.',
+      className: 'bg-green-50 border-green-200 text-green-900',
+    })
   }
 
   const handleEnrich = async () => {
@@ -161,7 +236,6 @@ export default function ContactProfile() {
       })
       return
     }
-
     setIsEnriching(true)
     try {
       const data = await fetchCNPJ(contact.cnpj)
@@ -332,8 +406,7 @@ export default function ContactProfile() {
                   </div>
                 </div>
 
-                {(contact.category === 'Cliente' ||
-                  contact.category === 'Colaborador Analista') && (
+                {contact.category === 'Cliente' && (
                   <div className="space-y-4 md:col-span-2 pt-6 mt-4 border-t border-gray-100">
                     <div className="flex items-center gap-2 mb-4">
                       <PercentSquare className="w-5 h-5 text-green-600" />
@@ -341,21 +414,15 @@ export default function ContactProfile() {
                         Dados Financeiros (Comissões)
                       </h3>
                     </div>
-
                     <div className="bg-green-50/50 p-4 rounded-lg border border-green-100 flex flex-col sm:flex-row gap-4 items-end sm:items-center">
                       <div className="space-y-1.5 flex-1">
                         <Label className="text-sm font-semibold flex items-center gap-2 text-gray-800">
-                          {contact.category === 'Cliente'
-                            ? 'Taxa de Comissão RDC (%)'
-                            : 'Comissão do Analista (%)'}
+                          Taxa de Comissão RDC (%)
                         </Label>
                         <p className="text-xs text-gray-500">
-                          {contact.category === 'Cliente'
-                            ? 'Percentual cobrado pelo RDC sobre o valor recuperado para este cliente.'
-                            : 'Percentual repassado a este analista por processos concluídos.'}
+                          Percentual cobrado pelo RDC sobre o valor recuperado para este cliente.
                         </p>
                       </div>
-
                       <div className="flex items-center gap-2 shrink-0">
                         <div className="relative w-24">
                           <Input
@@ -376,6 +443,286 @@ export default function ContactProfile() {
                         >
                           Salvar
                         </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {isAnalyst && (
+                  <div className="space-y-4 md:col-span-2 pt-6 mt-4 border-t border-gray-100">
+                    <div className="flex items-center gap-2 mb-4">
+                      <PercentSquare className="w-5 h-5 text-green-600" />
+                      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                        Dados Financeiros do Analista
+                      </h3>
+                      {!isAdmin && (
+                        <Badge className="bg-gray-100 text-gray-600 border-none text-[10px]">
+                          Somente Leitura
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="bg-green-50/50 p-4 rounded-lg border border-green-100 space-y-4">
+                      <div className="flex flex-col sm:flex-row gap-4 items-end sm:items-center">
+                        <div className="space-y-1.5 flex-1">
+                          <Label className="text-sm font-semibold text-gray-800">
+                            Comissão - 0 a 9.999,99 (%)
+                          </Label>
+                          <p className="text-xs text-gray-500">
+                            Percentual de comissão para valores até R$ 9.999,99.
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <div className="relative w-28">
+                            <Input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              value={comissaoAbaixoInput}
+                              onChange={(e) => setComissaoAbaixoInput(e.target.value)}
+                              disabled={!isAdmin}
+                              placeholder="Ex: 10"
+                              className="bg-white pr-8 focus-visible:ring-green-500 disabled:opacity-70"
+                            />
+                            <span className="absolute right-3 top-2.5 text-sm text-gray-400">
+                              %
+                            </span>
+                          </div>
+                          {isAdmin && (
+                            <Button
+                              onClick={() =>
+                                handleSaveAnalystField(
+                                  'COMISSAO - 0 A 9.999,99',
+                                  comissaoAbaixoInput,
+                                  'Comissão 0-9.999,99',
+                                )
+                              }
+                              className="bg-solved hover:bg-solved-dark text-white shadow-sm shrink-0"
+                            >
+                              Salvar
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-4 items-end sm:items-center">
+                        <div className="space-y-1.5 flex-1">
+                          <Label className="text-sm font-semibold text-gray-800">
+                            Comissão - Acima de 9.999,99 (%)
+                          </Label>
+                          <p className="text-xs text-gray-500">
+                            Percentual de comissão para valores acima de R$ 9.999,99.
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <div className="relative w-28">
+                            <Input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              value={comissaoAcimaInput}
+                              onChange={(e) => setComissaoAcimaInput(e.target.value)}
+                              disabled={!isAdmin}
+                              placeholder="Ex: 15"
+                              className="bg-white pr-8 focus-visible:ring-green-500 disabled:opacity-70"
+                            />
+                            <span className="absolute right-3 top-2.5 text-sm text-gray-400">
+                              %
+                            </span>
+                          </div>
+                          {isAdmin && (
+                            <Button
+                              onClick={() =>
+                                handleSaveAnalystField(
+                                  'COMISSAO - 9.999,99 ACIMA',
+                                  comissaoAcimaInput,
+                                  'Comissão acima de 9.999,99',
+                                )
+                              }
+                              className="bg-solved hover:bg-solved-dark text-white shadow-sm shrink-0"
+                            >
+                              Salvar
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-4 items-end sm:items-center pt-3 border-t border-green-100">
+                        <div className="space-y-1.5 flex-1">
+                          <Label className="text-sm font-semibold flex items-center gap-2 text-gray-800">
+                            <Wallet className="w-4 h-4 text-green-600" />
+                            Mensalidade (R$)
+                          </Label>
+                          <p className="text-xs text-gray-500">
+                            Valor da mensalidade paga pelo analista.
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <div className="relative w-32">
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={mensalidadeInput}
+                              onChange={(e) => setMensalidadeInput(e.target.value)}
+                              disabled={!isAdmin}
+                              placeholder="Ex: 2500.00"
+                              className="bg-white pl-7 focus-visible:ring-green-500 disabled:opacity-70"
+                            />
+                            <span className="absolute left-3 top-2.5 text-sm text-gray-400">
+                              R$
+                            </span>
+                          </div>
+                          {isAdmin && (
+                            <Button
+                              onClick={() =>
+                                handleSaveAnalystField(
+                                  'MENSALIDADE',
+                                  mensalidadeInput,
+                                  'Mensalidade',
+                                )
+                              }
+                              className="bg-solved hover:bg-solved-dark text-white shadow-sm shrink-0"
+                            >
+                              Salvar
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {isAnalyst && (
+                  <div className="space-y-4 md:col-span-2 pt-6 mt-4 border-t border-gray-100">
+                    <div className="flex items-center gap-2 mb-4">
+                      <FileText className="w-5 h-5 text-gray-500" />
+                      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                        Documentos do Analista
+                      </h3>
+                    </div>
+                    <div className="grid grid-cols-1 gap-4">
+                      <div className="p-4 bg-white border border-gray-200 rounded-lg space-y-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-50 rounded flex items-center justify-center shrink-0">
+                            <FileText className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div className="flex-1">
+                            <Label className="text-sm font-semibold text-gray-800">
+                              RG ou Carteira de Habilitação
+                            </Label>
+                            <p className="text-xs text-gray-500">
+                              Informe o link do documento de identificação.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Input
+                            value={docIdentidadeInput}
+                            onChange={(e) => setDocIdentidadeInput(e.target.value)}
+                            placeholder="https://exemplo.com/documento.pdf"
+                            className="bg-white flex-1"
+                          />
+                          <Button
+                            onClick={() =>
+                              handleSaveDocument('documento_identidade_url', docIdentidadeInput)
+                            }
+                            size="sm"
+                            className="bg-solved hover:bg-solved-dark text-white shrink-0 gap-1"
+                          >
+                            <Upload className="w-3.5 h-3.5" /> Salvar Link
+                          </Button>
+                          {analystData?.documento_identidade_url && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="shrink-0 gap-1"
+                                onClick={() =>
+                                  setPreviewFile({
+                                    url: analystData.documento_identidade_url,
+                                    name: 'documento_identidade.pdf',
+                                    type: 'pdf',
+                                  })
+                                }
+                              >
+                                <Eye className="w-3.5 h-3.5" /> Visualizar
+                              </Button>
+                              {isAdmin && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="shrink-0 gap-1 text-red-600 border-red-200 hover:bg-red-50"
+                                  onClick={() => handleRemoveDocument('documento_identidade_url')}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" /> Remover
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="p-4 bg-white border border-gray-200 rounded-lg space-y-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-green-50 rounded flex items-center justify-center shrink-0">
+                            <MapPin className="w-5 h-5 text-green-600" />
+                          </div>
+                          <div className="flex-1">
+                            <Label className="text-sm font-semibold text-gray-800">
+                              Comprovante de Endereço
+                            </Label>
+                            <p className="text-xs text-gray-500">
+                              Informe o link do comprovante de residência.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Input
+                            value={comprovanteInput}
+                            onChange={(e) => setComprovanteInput(e.target.value)}
+                            placeholder="https://exemplo.com/comprovante.pdf"
+                            className="bg-white flex-1"
+                          />
+                          <Button
+                            onClick={() =>
+                              handleSaveDocument('comprovante_endereco_url', comprovanteInput)
+                            }
+                            size="sm"
+                            className="bg-solved hover:bg-solved-dark text-white shrink-0 gap-1"
+                          >
+                            <Upload className="w-3.5 h-3.5" /> Salvar Link
+                          </Button>
+                          {analystData?.comprovante_endereco_url && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="shrink-0 gap-1"
+                                onClick={() =>
+                                  setPreviewFile({
+                                    url: analystData.comprovante_endereco_url,
+                                    name: 'comprovante_endereco.pdf',
+                                    type: 'pdf',
+                                  })
+                                }
+                              >
+                                <Eye className="w-3.5 h-3.5" /> Visualizar
+                              </Button>
+                              {isAdmin && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="shrink-0 gap-1 text-red-600 border-red-200 hover:bg-red-50"
+                                  onClick={() => handleRemoveDocument('comprovante_endereco_url')}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" /> Remover
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -414,79 +761,6 @@ export default function ContactProfile() {
                   </div>
                 )}
 
-                <div className="space-y-4 md:col-span-2 pt-6 mt-4 border-t border-gray-100">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-5 h-5 text-gray-500" />
-                      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                        Documentos de Origem (Odoo)
-                      </h3>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-md hover:border-blue-300 transition-colors">
-                      <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="w-10 h-10 bg-blue-50 rounded flex items-center justify-center shrink-0">
-                          <FileText className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <div className="overflow-hidden">
-                          <p className="text-sm font-medium text-gray-800 truncate">
-                            boletim_ocorrencia.pdf
-                          </p>
-                          <p className="text-xs text-gray-500">Adicionado via Odoo</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 text-gray-500 hover:text-blue-600"
-                          onClick={() =>
-                            setPreviewFile({
-                              url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-                              name: 'boletim_ocorrencia.pdf',
-                              type: 'pdf',
-                            })
-                          }
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-md hover:border-blue-300 transition-colors">
-                      <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="w-10 h-10 bg-blue-50 rounded flex items-center justify-center shrink-0">
-                          <FileText className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <div className="overflow-hidden">
-                          <p className="text-sm font-medium text-gray-800 truncate">
-                            cnh_motorista.jpg
-                          </p>
-                          <p className="text-xs text-gray-500">Adicionado via Odoo</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 text-gray-500 hover:text-blue-600"
-                          onClick={() =>
-                            setPreviewFile({
-                              url: 'https://img.usecurling.com/p/800/600?q=driver%20license',
-                              name: 'cnh_motorista.jpg',
-                              type: 'image',
-                            })
-                          }
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
                 {claimDetails && (
                   <div className="space-y-4 md:col-span-2 pt-6 mt-4 border-t border-gray-100">
                     <div className="flex items-center gap-2 mb-4">
@@ -495,7 +769,6 @@ export default function ContactProfile() {
                         Validação de Dados IA (Sinistro)
                       </h3>
                     </div>
-
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50/50 p-4 rounded-lg border border-gray-100">
                       <div className="space-y-3">
                         <Label className="text-sm font-semibold flex items-center gap-2 text-gray-700">
