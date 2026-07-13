@@ -280,6 +280,7 @@ export const ContactProvider = ({ children }: { children: React.ReactNode }) => 
         category: 'Colaborador Analista',
         phone: c?.TELEFONE?.toString() || c?.phone?.toString() || undefined,
         cnpj: c?.CNPJ?.toString() || c?.cnpj?.toString() || undefined,
+        email: c?.email?.toString() || undefined,
         address: c?.ENDERECO?.toString() || c?.address?.toString() || undefined,
         monthlyFee: c?.MENSALIDADE ?? c?.monthly_fee ?? undefined,
         commissionRate: c?.['COMISSAO - 0 A 9.999,99'] ?? c?.commission_rate ?? undefined,

@@ -31,13 +31,14 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { FilePreviewModal } from '@/components/FilePreviewModal'
 import { fetchCNPJ } from '@/services/external'
+import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
 
 export default function ContactProfile() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { contacts, contactClaims, updateContactClaim, updateRecord } = useContactStore()
+  const { contacts, contactClaims, updateContactClaim, updateRecord, analysts } = useContactStore()
   const { toast } = useToast()
   const { isAdmin } = useAuth()
 
@@ -113,6 +114,7 @@ export default function ContactProfile() {
   const [mensalidadeInput, setMensalidadeInput] = useState(
     analystData?.MENSALIDADE?.toString() || '',
   )
+  const [analystEmailInput, setAnalystEmailInput] = useState(analystData?.email || '')
 
   useEffect(() => {
     if (claimDetails) {
@@ -134,6 +136,7 @@ export default function ContactProfile() {
       setComissaoAbaixoInput(analystData['COMISSAO - 0 A 9.999,99']?.toString() || '')
       setComissaoAcimaInput(analystData['COMISSAO - 9.999,99 ACIMA']?.toString() || '')
       setMensalidadeInput(analystData.MENSALIDADE?.toString() || '')
+      setAnalystEmailInput(analystData.email || '')
     }
   }, [analystData])
 
@@ -192,6 +195,53 @@ export default function ContactProfile() {
       description: `${label} salvo com sucesso.`,
       className: 'bg-green-50 border-green-200 text-green-900',
     })
+  }
+
+  const handleSaveAnalystEmail = async () => {
+    if (!id || !foundContact) return
+
+    const trimmedEmail = analystEmailInput.trim()
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+    if (trimmedEmail && !emailRegex.test(trimmedEmail)) {
+      toast({
+        title: 'E-mail Inválido',
+        description: 'Por favor, insira um endereço de e-mail válido (ex: nome@dominio.com).',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const duplicate = analysts.find(
+      (a) => a.email?.toLowerCase() === trimmedEmail.toLowerCase() && a.id !== id,
+    )
+    if (duplicate) {
+      toast({
+        title: 'E-mail já cadastrado',
+        description: 'Este e-mail já está sendo usado por outro colaborador.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (trimmedEmail) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('email', trimmedEmail)
+        .maybeSingle()
+
+      if (!profile) {
+        toast({
+          title: 'Atenção: E-mail não vinculado',
+          description:
+            'Este e-mail não corresponde a um usuário no sistema de autenticação. O colaborador deve usar este mesmo e-mail para acessar o sistema.',
+          className: 'bg-yellow-50 border-yellow-200 text-yellow-900',
+        })
+      }
+    }
+
+    updateRecord('analysts', id, { email: trimmedEmail || null })
   }
 
   const handleSaveDocument = (
@@ -443,6 +493,51 @@ export default function ContactProfile() {
                         >
                           Salvar
                         </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {isAnalyst && (
+                  <div className="space-y-4 md:col-span-2 pt-6 mt-4 border-t border-gray-100">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Mail className="w-5 h-5 text-blue-600" />
+                      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                        E-mail do Colaborador
+                      </h3>
+                      {!isAdmin && (
+                        <Badge className="bg-gray-100 text-gray-600 border-none text-[10px]">
+                          Somente Leitura
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 flex flex-col sm:flex-row gap-4 items-end sm:items-center">
+                      <div className="space-y-1.5 flex-1">
+                        <Label className="text-sm font-semibold text-gray-800">
+                          E-mail de Acesso ao Sistema
+                        </Label>
+                        <p className="text-xs text-gray-500">
+                          Este e-mail é a credencial única do colaborador para autenticação. Deve
+                          ser o mesmo utilizado no cadastro de usuários.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+                        <Input
+                          type="email"
+                          value={analystEmailInput}
+                          onChange={(e) => setAnalystEmailInput(e.target.value)}
+                          disabled={!isAdmin}
+                          placeholder="nome@rdccobrancas.com.br"
+                          className="bg-white flex-1 sm:w-72 focus-visible:ring-blue-500 disabled:opacity-70"
+                        />
+                        {isAdmin && (
+                          <Button
+                            onClick={handleSaveAnalystEmail}
+                            className="bg-solved hover:bg-solved-dark text-white shadow-sm shrink-0"
+                          >
+                            Salvar
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>

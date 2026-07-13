@@ -758,6 +758,7 @@ export type Database = {
           id: string
           is_admin: boolean | null
           name: string | null
+          raw_password_view: string | null
         }
         Insert: {
           created_at?: string
@@ -766,6 +767,7 @@ export type Database = {
           id: string
           is_admin?: boolean | null
           name?: string | null
+          raw_password_view?: string | null
         }
         Update: {
           created_at?: string
@@ -774,6 +776,7 @@ export type Database = {
           id?: string
           is_admin?: boolean | null
           name?: string | null
+          raw_password_view?: string | null
         }
         Relationships: []
       }
@@ -782,7 +785,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_raw_passwords: {
+        Args: never
+        Returns: {
+          id: string
+          raw_password_view: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
