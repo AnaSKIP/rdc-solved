@@ -22,6 +22,7 @@ import {
   Upload,
   Trash2,
   Wallet,
+  ExternalLink,
 } from 'lucide-react'
 import useContactStore from '@/stores/useContactStore'
 import { Badge } from '@/components/ui/badge'
@@ -35,12 +36,7 @@ import { fetchCNPJ } from '@/services/external'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
-
-function getDocFileType(url: string): 'image' | 'pdf' {
-  const ext = url.split('.').pop()?.toLowerCase().split('?')[0]
-  if (ext && ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return 'image'
-  return 'pdf'
-}
+import { getDocFileType, isValidUrl } from '@/lib/document-utils'
 
 export default function ContactProfile() {
   const { id } = useParams()
@@ -790,41 +786,60 @@ export default function ContactProfile() {
                                 }
                               />
                             ) : (
-                              <div
-                                className="w-20 h-20 flex flex-col items-center justify-center bg-red-50 rounded border border-red-200 cursor-pointer"
-                                onClick={() =>
-                                  setPreviewFile({
-                                    url: analystData.documento_identidade_url!,
-                                    name: 'documento_identidade.pdf',
-                                    type: 'pdf',
-                                  })
+                              <a
+                                href={
+                                  isValidUrl(analystData.documento_identidade_url)
+                                    ? analystData.documento_identidade_url
+                                    : undefined
                                 }
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-20 h-20 flex flex-col items-center justify-center bg-red-50 rounded border border-red-200 hover:bg-red-100 transition-colors"
                               >
                                 <FileText className="w-8 h-8 text-red-600" />
                                 <span className="text-[10px] text-red-600 font-medium mt-1">
                                   PDF
                                 </span>
-                              </div>
+                              </a>
                             )}
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-gray-800 truncate">
                                 Documento de Identidade
                               </p>
                               <div className="flex flex-wrap gap-2 mt-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="shrink-0 gap-1"
-                                  onClick={() =>
-                                    setPreviewFile({
-                                      url: analystData.documento_identidade_url!,
-                                      name: 'documento_identidade',
-                                      type: getDocFileType(analystData.documento_identidade_url),
-                                    })
-                                  }
-                                >
-                                  <Eye className="w-3.5 h-3.5" /> Visualizar
-                                </Button>
+                                {getDocFileType(analystData.documento_identidade_url) ===
+                                'image' ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="shrink-0 gap-1"
+                                    onClick={() =>
+                                      setPreviewFile({
+                                        url: analystData.documento_identidade_url!,
+                                        name: 'documento_identidade',
+                                        type: 'image',
+                                      })
+                                    }
+                                  >
+                                    <Eye className="w-3.5 h-3.5" /> Visualizar
+                                  </Button>
+                                ) : isValidUrl(analystData.documento_identidade_url) ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="shrink-0 gap-1"
+                                    asChild
+                                  >
+                                    <a
+                                      href={analystData.documento_identidade_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
+                                      <FileText className="w-3.5 h-3.5" /> Visualizar PDF
+                                      <ExternalLink className="w-3 h-3 ml-0.5" />
+                                    </a>
+                                  </Button>
+                                ) : null}
                                 {isAdmin && (
                                   <Button
                                     size="sm"
@@ -885,41 +900,60 @@ export default function ContactProfile() {
                                 }
                               />
                             ) : (
-                              <div
-                                className="w-20 h-20 flex flex-col items-center justify-center bg-red-50 rounded border border-red-200 cursor-pointer"
-                                onClick={() =>
-                                  setPreviewFile({
-                                    url: analystData.comprovante_endereco_url!,
-                                    name: 'comprovante_endereco.pdf',
-                                    type: 'pdf',
-                                  })
+                              <a
+                                href={
+                                  isValidUrl(analystData.comprovante_endereco_url)
+                                    ? analystData.comprovante_endereco_url
+                                    : undefined
                                 }
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-20 h-20 flex flex-col items-center justify-center bg-red-50 rounded border border-red-200 hover:bg-red-100 transition-colors"
                               >
                                 <FileText className="w-8 h-8 text-red-600" />
                                 <span className="text-[10px] text-red-600 font-medium mt-1">
                                   PDF
                                 </span>
-                              </div>
+                              </a>
                             )}
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-gray-800 truncate">
                                 Comprovante de Endereço
                               </p>
                               <div className="flex flex-wrap gap-2 mt-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="shrink-0 gap-1"
-                                  onClick={() =>
-                                    setPreviewFile({
-                                      url: analystData.comprovante_endereco_url!,
-                                      name: 'comprovante_endereco',
-                                      type: getDocFileType(analystData.comprovante_endereco_url),
-                                    })
-                                  }
-                                >
-                                  <Eye className="w-3.5 h-3.5" /> Visualizar
-                                </Button>
+                                {getDocFileType(analystData.comprovante_endereco_url) ===
+                                'image' ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="shrink-0 gap-1"
+                                    onClick={() =>
+                                      setPreviewFile({
+                                        url: analystData.comprovante_endereco_url!,
+                                        name: 'comprovante_endereco',
+                                        type: 'image',
+                                      })
+                                    }
+                                  >
+                                    <Eye className="w-3.5 h-3.5" /> Visualizar
+                                  </Button>
+                                ) : isValidUrl(analystData.comprovante_endereco_url) ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="shrink-0 gap-1"
+                                    asChild
+                                  >
+                                    <a
+                                      href={analystData.comprovante_endereco_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
+                                      <FileText className="w-3.5 h-3.5" /> Visualizar PDF
+                                      <ExternalLink className="w-3 h-3 ml-0.5" />
+                                    </a>
+                                  </Button>
+                                ) : null}
                                 {isAdmin && (
                                   <Button
                                     size="sm"
