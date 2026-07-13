@@ -1,5 +1,4 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
-import { createClient } from 'npm:@supabase/supabase-js@2'
 import pdf from 'npm:pdf-parse@1.1.1'
 import { Buffer } from 'node:buffer'
 
@@ -38,28 +37,33 @@ Deno.serve(async (req: Request) => {
       return null
     }
 
+    const cleanPlaca = (placa: string | null) => (placa ? placa.replace(/-/g, '') : null)
+
     const cliente = extractField([
-      /(?:Empresa|Cliente|Segurado|Viação|Transportadora)[\s:-]+([^\n\r]{3,50})/i,
+      /(?:Empresa|Cliente|Segurado|Viação|Transportadora|Razão Social)[\s:-]+([^\n\r]{3,50})/i,
     ])
 
     const placaOnibus = extractField([
-      /(?:Placa do Ônibus|Placa do Veículo|Placa Cliente|Placa Segurado)[\s:-]+([A-Z0-9-]{7,8})/i,
-      /Veículo Cliente.*?([A-Z]{3}-?[0-9][A-Z0-9][0-9]{2})/i,
+      /(?:Placa do Ônibus|Placa do Veículo Cliente|Placa Cliente|Placa Segurado|Placa do Veículo Avariado)[\s:-]+([A-Z0-9-]{7,8})/i,
+      /(?:Veículo Cliente|Veículo Segurado|Ônibus).*?([A-Z]{3}-?[0-9][A-Z0-9][0-9]{2})/i,
     ])
 
-    const prefixo = extractField([/(?:Prefixo|Nº do Ônibus|Carro|Frota)[\s:-]+([A-Z0-9-]{3,10})/i])
+    const prefixo = extractField([
+      /(?:Prefixo|Nº do Ônibus|Carro|Frota|Nº Frota)[\s:-]+([A-Z0-9-]{3,10})/i,
+    ])
 
     const causerName = extractField([
-      /(?:Nome do Causador|Causador|Terceiro|Motorista Causador|Nome Terceiro|Condutor Terceiro)[\s:-]+([^\n\r]{3,50})/i,
+      /(?:Nome do Causador|Causador|Terceiro|Motorista Causador|Nome Terceiro|Condutor Terceiro|Condutor do Veículo Causador|Proprietário do Veículo Causador)[\s:-]+([^\n\r]{3,50})/i,
     ])
 
     const placaCausador = extractField([
-      /(?:Placa do Causador|Placa Terceiro|Placa do Veículo Causador)[\s:-]+([A-Z0-9-]{7,8})/i,
+      /(?:Placa do Causador|Placa Terceiro|Placa do Veículo Causador|Placa do Veículo Terceiro|Veículo Causador Placa)[\s:-]+([A-Z0-9-]{7,8})/i,
       /Veículo Terceiro.*?([A-Z]{3}-?[0-9][A-Z0-9][0-9]{2})/i,
+      /Veículo Causador.*?([A-Z]{3}-?[0-9][A-Z0-9][0-9]{2})/i,
     ])
 
     const marcaModelo = extractField([
-      /(?:Marca\/Modelo|Veículo Causador|Veículo Terceiro|Modelo Terceiro)[\s:-]+([^\n\r]{3,50})/i,
+      /(?:Marca\/Modelo|Veículo Causador|Veículo Terceiro|Modelo Terceiro|Modelo do Veículo Causador|Marca e Modelo do Terceiro)[\s:-]+([^\n\r]{3,50})/i,
     ])
 
     const causerDocument = extractField([
@@ -67,42 +71,51 @@ Deno.serve(async (req: Request) => {
     ])
 
     const causerPhone = extractField([
-      /(?:Telefone|Celular|Contato|WhatsApp)(?:[\s do causador]*|[\s do terceiro]*)[\s:-]+(\(?\d{2}\)?\s?\d{4,5}-?\d{4})/i,
+      /(?:Telefone|Celular|Contato)(?:[\s do causador]*|[\s do terceiro]*)[\s:-]+(\(?\d{2}\)?\s?\d{4,5}-?\d{4})/i,
     ])
+
+    const causerWhatsapp =
+      extractField([
+        /(?:WhatsApp)(?:[\s do causador]*|[\s do terceiro]*)[\s:-]+(\(?\d{2}\)?\s?\d{4,5}-?\d{4})/i,
+      ]) || causerPhone
 
     const proprietarioNome = extractField([
       /(?:Proprietário do Veículo|Nome do Proprietário|Proprietário)[\s:-]+([^\n\r]{3,50})/i,
     ])
 
-    const causerEndereco = extractField([
-      /(?:Endereço|Logradouro|Local de Residência)(?:[\s do causador]*|[\s do terceiro]*)[\s:-]+([^\n\r]{5,100})/i,
+    const proprietarioTelefone = extractField([
+      /(?:Telefone do Proprietário|Telefone Proprietário|Contato do Proprietário)[\s:-]+(\(?\d{2}\)?\s?\d{4,5}-?\d{4})/i,
     ])
 
-    // Busca rígida por sumários sem expansão do texto
+    const causerEndereco = extractField([
+      /(?:Endereço|Logradouro|Local de Residência|Endereço do Causador|Endereço do Terceiro)(?:[\s do causador]*|[\s do terceiro]*)[\s:-]+([^\n\r]{5,100})/i,
+    ])
+
     const dinamicaMatch = text.match(
-      /(?:Dinâmica do Acidente|Relato do Acidente|Histórico|Descrição|Dinâmica|Resumo do Evento)[\s:-]+([\s\S]{10,2000}?)(?=\n(?:[A-Z][a-zÀ-ÿ]+[\s:-])|\n\n\n|$)/i,
+      /(?:Dinâmica do Acidente|Relato do Acidente|Histórico|Descrição|Dinâmica|Resumo do Evento|Descrição do Acidente)[\s:-]+([\s\S]{10,2000}?)(?=\n(?:[A-Z][a-zÀ-ÿ]+[\s:-])|\n\n\n|$)/i,
     )
     let dinamica = dinamicaMatch ? dinamicaMatch[1].trim() : null
-
     if (dinamica) {
       dinamica = dinamica.replace(/\s+/g, ' ')
     }
 
     const extracted = {
       cliente,
-      placaOnibus: placaOnibus ? placaOnibus.replace('-', '') : null,
+      placaOnibus: cleanPlaca(placaOnibus),
       prefixo,
       causerName,
-      placaCausador: placaCausador ? placaCausador.replace('-', '') : null,
+      placaCausador: cleanPlaca(placaCausador),
       marcaModelo,
       causerDocument,
       causerPhone,
+      causer_whatsapp: causerWhatsapp,
       causerEndereco,
       proprietarioNome,
+      proprietarioTelefone,
       dinamica,
     }
 
-    console.log('Dados extraídos factual e estritamente:', extracted)
+    console.log('Dados extraídos (causador diferenciado do cliente):', extracted)
 
     return new Response(JSON.stringify({ success: true, extracted }), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders },

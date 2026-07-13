@@ -165,44 +165,11 @@ export function CaseForm() {
     setIsEnriching(true)
     try {
       let extractedData: any = {}
+      let partialError: string | null = null
 
-      // 1. Consultar Infocar / SCI se tiver placa
-      if (placaCausador) {
-        toast({
-          title: '🔍 Consultando Bases Externas',
-          description: 'Buscando informações oficiais do veículo e proprietário...',
-        })
-
-        const { data: externalData } = await supabase.functions.invoke('enrich-infocar-sci', {
-          body: { placa: placaCausador },
-        })
-
-        if (externalData && externalData.success && externalData.data) {
-          extractedData = { ...extractedData, ...externalData.data }
-          toast({
-            title: 'Ação executada: Retorno da API',
-            description: externalData.message || 'Dados encontrados com sucesso.',
-            className: 'bg-green-50 border-green-200',
-          })
-        } else if (externalData && externalData.message) {
-          toast({
-            title: 'Nenhum retorno recebido',
-            description: externalData.message,
-            variant: 'destructive',
-          })
-        } else {
-          toast({
-            title: 'Nenhum retorno recebido',
-            description: 'Ação não confirmada. Nenhuma resposta da API.',
-            variant: 'destructive',
-          })
-        }
-      }
-
-      // 2. Extrair dados dos anexos reais (B.O. / Relatório)
       toast({
         title: '📄 Analisando Documentos',
-        description: 'Enviando documento real para extração factual...',
+        description: 'Enviando documento real para extração factual do causador...',
       })
 
       const pdfAttachment = selectedClaim?.attachments?.find(
@@ -222,12 +189,10 @@ export function CaseForm() {
             className: 'bg-green-50 border-green-200',
           })
         } else {
+          partialError = pdfError?.message || pdfData?.error || 'Falha na leitura do PDF.'
           toast({
             title: 'Nenhum retorno recebido',
-            description:
-              pdfError?.message ||
-              pdfData?.error ||
-              'Ação não confirmada. Falha na leitura do PDF.',
+            description: partialError,
             variant: 'destructive',
           })
         }
@@ -239,57 +204,145 @@ export function CaseForm() {
         })
       }
 
-      // 3. Atualizar formulário com dados reais
       const updates: any = {}
       if (extractedData.causerName && !causerName) {
-        updates.causerName = extractedData.causerName
+        updates.causer_name = extractedData.causerName
         setCauserName(extractedData.causerName)
       }
       if (extractedData.causerDocument && !causerDocument) {
-        updates.causerDocument = extractedData.causerDocument
+        updates.causer_document = extractedData.causerDocument
         setCauserDocument(extractedData.causerDocument)
       }
-      if (extractedData.causerPhone && !causerPhone) {
-        updates.causerPhone = extractedData.causerPhone
-        setCauserPhone(extractedData.causerPhone)
+      const extractedPhone = extractedData.causerPhone || extractedData.causer_whatsapp
+      if (extractedPhone && !causerPhone) {
+        updates.phone = extractedPhone
+        updates.causer_whatsapp = extractedPhone
+        setCauserPhone(extractedPhone)
       }
       if (extractedData.marcaModelo && !tipoVeiculoCausador) {
-        updates.tipoVeiculoCausador = extractedData.marcaModelo
+        updates.tipo_veiculo_causador = extractedData.marcaModelo
         setTipoVeiculoCausador(extractedData.marcaModelo)
       }
       if (extractedData.placaCausador && !placaCausador) {
-        updates.placaCausador = extractedData.placaCausador
+        updates.placa_causador = extractedData.placaCausador
         setPlacaCausador(extractedData.placaCausador)
       }
       if (extractedData.dinamica && !dinamicaAcidente) {
-        updates.dinamicaAcidente = extractedData.dinamica
+        updates.relato_acidente = extractedData.dinamica
         setDinamicaAcidente(extractedData.dinamica)
       }
-
-      // Novos campos de Proprietário e Endereço
       if (extractedData.causerEndereco && !causerEndereco) {
-        updates.causerEndereco = extractedData.causerEndereco
         updates.causer_endereco = extractedData.causerEndereco
         setCauserEndereco(extractedData.causerEndereco)
       }
       if (extractedData.proprietarioNome && !proprietarioNome) {
-        updates.proprietarioVeiculoCausador = extractedData.proprietarioNome
         updates.proprietario_veiculo_causador = extractedData.proprietarioNome
         setProprietarioNome(extractedData.proprietarioNome)
       }
       if (extractedData.proprietarioTelefone && !proprietarioTelefone) {
-        updates.proprietarioTelefone = extractedData.proprietarioTelefone
         updates.proprietario_telefone = extractedData.proprietarioTelefone
         setProprietarioTelefone(extractedData.proprietarioTelefone)
       }
 
+      const effectivePlaca = updates.placa_causador || placaCausador
+      if (effectivePlaca) {
+        toast({
+          title: '🔍 Consultando Bases Externas',
+          description:
+            'Placa identificada. Buscando informações oficiais do veículo e proprietário...',
+        })
+
+        const { data: externalData, error: externalError } = await supabase.functions.invoke(
+          'enrich-infocar-sci',
+          { body: { placa: effectivePlaca } },
+        )
+
+        if (externalData && externalData.success && externalData.data) {
+          if (externalData.data.causerName && !causerName && !updates.causer_name) {
+            updates.causer_name = externalData.data.causerName
+            setCauserName(externalData.data.causerName)
+          }
+          if (externalData.data.causerDocument && !causerDocument && !updates.causer_document) {
+            updates.causer_document = externalData.data.causerDocument
+            setCauserDocument(externalData.data.causerDocument)
+          }
+          const externalPhone = externalData.data.causerPhone || externalData.data.causer_whatsapp
+          if (externalPhone && !causerPhone && !updates.phone) {
+            updates.phone = externalPhone
+            updates.causer_whatsapp = externalPhone
+            setCauserPhone(externalPhone)
+          }
+          if (externalData.data.causerEndereco && !causerEndereco && !updates.causer_endereco) {
+            updates.causer_endereco = externalData.data.causerEndereco
+            setCauserEndereco(externalData.data.causerEndereco)
+          }
+          if (
+            externalData.data.proprietarioNome &&
+            !proprietarioNome &&
+            !updates.proprietario_veiculo_causador
+          ) {
+            updates.proprietario_veiculo_causador = externalData.data.proprietarioNome
+            setProprietarioNome(externalData.data.proprietarioNome)
+          }
+          if (
+            externalData.data.proprietarioTelefone &&
+            !proprietarioTelefone &&
+            !updates.proprietario_telefone
+          ) {
+            updates.proprietario_telefone = externalData.data.proprietarioTelefone
+            setProprietarioTelefone(externalData.data.proprietarioTelefone)
+          }
+          toast({
+            title: 'Ação executada: Retorno da API',
+            description: externalData.message || 'Dados encontrados com sucesso.',
+            className: 'bg-green-50 border-green-200',
+          })
+        } else if (externalError) {
+          partialError = externalError.message
+          toast({
+            title: 'Enriquecimento Parcial',
+            description: 'Dados do documento foram salvos, mas a consulta à API externa falhou.',
+            variant: 'destructive',
+          })
+        } else if (externalData && externalData.message) {
+          toast({
+            title: 'Consulta Externa',
+            description: externalData.message,
+            variant: 'destructive',
+          })
+        }
+      }
+
+      const finalCauserName = updates.causer_name || causerName
+      const finalPlacaCausador = updates.placa_causador || placaCausador
+      const finalCauserDocument = updates.causer_document || causerDocument
+      const isFullyEnriched = Boolean(finalCauserName && finalPlacaCausador && finalCauserDocument)
+
+      if (isFullyEnriched) {
+        updates.is_enriched = true
+      }
+
       if (Object.keys(updates).length > 0 && selectedClaim?.id) {
         updateClaim(selectedClaim.id.toString(), updates)
-        toast({
-          title: '✨ Dados Atualizados',
-          description: 'Informações processadas e preenchidas com sucesso.',
-          className: 'bg-green-50 border-green-200 text-green-900',
-        })
+
+        if (isFullyEnriched) {
+          toast({
+            title: '✨ Enriquecimento Completo',
+            description: 'Todas as informações do causador foram preenchidas e verificadas.',
+            className: 'bg-green-50 border-green-200 text-green-900',
+          })
+        } else if (partialError) {
+          toast({
+            title: 'Enriquecimento Parcial',
+            description: 'Informações parcialmente preenchidas. Algumas consultas falharam.',
+          })
+        } else {
+          toast({
+            title: '✨ Dados Atualizados',
+            description: 'Informações processadas e preenchidas com sucesso.',
+            className: 'bg-green-50 border-green-200 text-green-900',
+          })
+        }
       } else {
         toast({
           title: 'Sem novos dados',

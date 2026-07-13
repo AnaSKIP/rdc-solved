@@ -2,7 +2,7 @@
   "_versions": {
     "send-whatsapp": 28,
     "zapi-webhook": 17,
-    "process-pdf": 8,
+    "process-pdf": 9,
     "processar-pdf-leads": 6,
     "odoo-sync": 9,
     "odoo-sync-automated": 6,

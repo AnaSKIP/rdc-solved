@@ -388,6 +388,7 @@ export type Database = {
           causer_whatsapp: string | null
           client_claim_number: string | null
           client_id: string | null
+          company_cnpj: string | null
           created_at: string | null
           data_finalizacao: string | null
           data_prescricao: string | null
@@ -440,6 +441,7 @@ export type Database = {
           causer_whatsapp?: string | null
           client_claim_number?: string | null
           client_id?: string | null
+          company_cnpj?: string | null
           created_at?: string | null
           data_finalizacao?: string | null
           data_prescricao?: string | null
@@ -492,6 +494,7 @@ export type Database = {
           causer_whatsapp?: string | null
           client_claim_number?: string | null
           client_id?: string | null
+          company_cnpj?: string | null
           created_at?: string | null
           data_finalizacao?: string | null
           data_prescricao?: string | null
@@ -726,6 +729,7 @@ export type Database = {
       leads: {
         Row: {
           analista_id: string | null
+          cnpj: string | null
           created_at: string | null
           data_entrada: string | null
           empresa: string | null
@@ -736,6 +740,7 @@ export type Database = {
         }
         Insert: {
           analista_id?: string | null
+          cnpj?: string | null
           created_at?: string | null
           data_entrada?: string | null
           empresa?: string | null
@@ -746,6 +751,7 @@ export type Database = {
         }
         Update: {
           analista_id?: string | null
+          cnpj?: string | null
           created_at?: string | null
           data_entrada?: string | null
           empresa?: string | null

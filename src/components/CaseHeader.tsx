@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ChevronLeft, ChevronRight, CheckCircle2, ArrowLeft, Sparkles, Loader2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CheckCircle2, ArrowLeft } from 'lucide-react'
 import { Pipeline } from './Pipeline'
 import { WhatsAppTemplateSidebar } from './WhatsAppTemplateSidebar'
 import {
@@ -14,12 +14,10 @@ import {
 import useCaseStore, { PIPELINE_STAGES, PipelineStage } from '@/stores/useCaseStore'
 import useKanbanStore, { KanbanClaim } from '@/stores/useKanbanStore'
 import { useToast } from '@/hooks/use-toast'
-import { simulateOCR } from '@/services/external'
 import { PasswordConfirmModal } from '@/components/PasswordConfirmModal'
 import { supabase } from '@/lib/supabase/client'
 
 export function CaseHeader() {
-  const [isEnriching, setIsEnriching] = useState(false)
   const { toast } = useToast()
 
   const {
@@ -35,8 +33,7 @@ export function CaseHeader() {
     setClientClaimNumber,
   } = useCaseStore()
 
-  const { claims, selectedClaim, setSelectedClaim, moveClaim, analystFilter, updateClaim } =
-    useKanbanStore()
+  const { claims, selectedClaim, setSelectedClaim, moveClaim, analystFilter } = useKanbanStore()
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
@@ -91,32 +88,6 @@ export function CaseHeader() {
   const handleNextClaim = () => {
     if (currentClaimIndex >= 0 && currentClaimIndex < totalClaims - 1) {
       handlePopulateClaim(filteredClaims[currentClaimIndex + 1])
-    }
-  }
-
-  const handleEnrich = async () => {
-    if (!selectedClaim) return
-    setIsEnriching(true)
-    try {
-      const fileUrl = selectedClaim.attachments?.[0]?.url || 'fake-url'
-      const result = await simulateOCR(fileUrl)
-      updateClaim(selectedClaim.id, {
-        placaCausador: result.placa_causador,
-        dinamicaAcidente: result.relato_acidente,
-      })
-      toast({
-        title: 'Dados Extraídos com Sucesso!',
-        description: 'Placa e relato preenchidos pela IA.',
-        className: 'bg-green-50 border-green-200 text-green-900',
-      })
-    } catch (error) {
-      toast({
-        title: 'Erro na extração',
-        description: 'Não foi possível extrair os dados.',
-        variant: 'destructive',
-      })
-    } finally {
-      setIsEnriching(false)
     }
   }
 
@@ -200,20 +171,6 @@ export function CaseHeader() {
             onClick={() => setIsDeleteModalOpen(true)}
           >
             Descartar
-          </Button>
-
-          <Button
-            size="sm"
-            onClick={handleEnrich}
-            disabled={isEnriching}
-            className="h-8 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm gap-1.5"
-          >
-            {isEnriching ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
-            )}
-            Enriquecer (IA)
           </Button>
 
           <div className="border-l pl-2 ml-1 flex items-center gap-2">
