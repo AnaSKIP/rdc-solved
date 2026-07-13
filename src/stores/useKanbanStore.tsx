@@ -115,8 +115,17 @@ export const KanbanProvider = ({ children }: { children: React.ReactNode }) => {
       const mapped: KanbanClaim[] = data
         .map((d) => {
           const clientContact = contacts.find((c) => c?.id === d?.client_id?.toString())
-          const companyName = clientContact?.name?.toString() || 'Cliente Desconhecido'
-          const companyCnpj = clientContact?.cnpj?.toString() || ''
+          const clientByCnpj =
+            !clientContact && (d as any)?.company_cnpj
+              ? contacts.find((c) => c?.cnpj?.toString() === (d as any)?.company_cnpj?.toString())
+              : null
+          const resolvedContact = clientContact || clientByCnpj
+          const companyName =
+            resolvedContact?.name?.toString() ||
+            d?.causer_name?.toString() ||
+            'Cliente Desconhecido'
+          const companyCnpj =
+            resolvedContact?.cnpj?.toString() || (d as any)?.company_cnpj?.toString() || ''
 
           const ra = d?.ra?.toString() || 'S/N'
 

@@ -42,6 +42,7 @@ export type Database = {
           'COMISSAO - 0 A 9.999,99': number | null
           'COMISSAO - 9.999,99 ACIMA': number | null
           comprovante_endereco_url: string | null
+          contrato_prestacao_servicos_url: string | null
           documento_identidade_url: string | null
           email: string | null
           ENDERECO: string | null
@@ -55,6 +56,7 @@ export type Database = {
           'COMISSAO - 0 A 9.999,99'?: number | null
           'COMISSAO - 9.999,99 ACIMA'?: number | null
           comprovante_endereco_url?: string | null
+          contrato_prestacao_servicos_url?: string | null
           documento_identidade_url?: string | null
           email?: string | null
           ENDERECO?: string | null
@@ -68,6 +70,7 @@ export type Database = {
           'COMISSAO - 0 A 9.999,99'?: number | null
           'COMISSAO - 9.999,99 ACIMA'?: number | null
           comprovante_endereco_url?: string | null
+          contrato_prestacao_servicos_url?: string | null
           documento_identidade_url?: string | null
           email?: string | null
           ENDERECO?: string | null
