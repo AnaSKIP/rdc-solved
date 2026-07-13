@@ -14,6 +14,7 @@ import {
   FileWarning,
   PercentSquare,
   FileText,
+  Loader2,
   MapPin,
   CheckCircle,
   Eye,
@@ -34,6 +35,12 @@ import { fetchCNPJ } from '@/services/external'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
+
+function getDocFileType(url: string): 'image' | 'pdf' {
+  const ext = url.split('.').pop()?.toLowerCase().split('?')[0]
+  if (ext && ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return 'image'
+  return 'pdf'
+}
 
 export default function ContactProfile() {
   const { id } = useParams()
@@ -99,12 +106,7 @@ export default function ContactProfile() {
   } | null>(null)
   const [isEnriching, setIsEnriching] = useState(false)
 
-  const [docIdentidadeInput, setDocIdentidadeInput] = useState(
-    analystData?.documento_identidade_url || '',
-  )
-  const [comprovanteInput, setComprovanteInput] = useState(
-    analystData?.comprovante_endereco_url || '',
-  )
+  const [isUploading, setIsUploading] = useState(false)
   const [comissaoAbaixoInput, setComissaoAbaixoInput] = useState(
     analystData?.['COMISSAO - 0 A 9.999,99']?.toString() || '',
   )
@@ -131,8 +133,6 @@ export default function ContactProfile() {
 
   useEffect(() => {
     if (analystData) {
-      setDocIdentidadeInput(analystData.documento_identidade_url || '')
-      setComprovanteInput(analystData.comprovante_endereco_url || '')
       setComissaoAbaixoInput(analystData['COMISSAO - 0 A 9.999,99']?.toString() || '')
       setComissaoAcimaInput(analystData['COMISSAO - 9.999,99 ACIMA']?.toString() || '')
       setMensalidadeInput(analystData.MENSALIDADE?.toString() || '')
@@ -244,32 +244,89 @@ export default function ContactProfile() {
     updateRecord('analysts', id, { email: trimmedEmail || null })
   }
 
-  const handleSaveDocument = (
+  const handleUploadDocument = async (
     field: 'documento_identidade_url' | 'comprovante_endereco_url',
-    value: string,
   ) => {
     if (!id || !foundContact) return
-    updateRecord('analysts', id, { [field]: value || null })
-    toast({
-      title: 'Documento Salvo',
-      description: 'O link do documento foi salvo com sucesso.',
-      className: 'bg-green-50 border-green-200 text-green-900',
-    })
+
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf'
+
+    input.onchange = async (e: any) => {
+      const file = e.target.files[0]
+      if (!file) return
+
+      const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf']
+      if (!validTypes.includes(file.type)) {
+        toast({
+          title: 'Formato Inválido',
+          description: 'Apenas arquivos JPG, PNG e PDF são permitidos.',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      setIsUploading(true)
+      try {
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${id}/${field}_${Date.now()}.${fileExt}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('analyst-documents')
+          .upload(fileName, file, { upsert: true })
+
+        if (uploadError) throw new Error('Falha no upload: ' + uploadError.message)
+
+        const { data: urlData } = supabase.storage.from('analyst-documents').getPublicUrl(fileName)
+
+        await updateRecord('analysts', id, { [field]: urlData.publicUrl })
+        toast({
+          title: 'Documento Enviado',
+          description: 'O documento foi enviado e salvo com sucesso.',
+          className: 'bg-green-50 border-green-200 text-green-900',
+        })
+      } catch (err: any) {
+        toast({
+          title: 'Erro no Upload',
+          description: err.message || 'Falha ao enviar o documento.',
+          variant: 'destructive',
+        })
+      } finally {
+        setIsUploading(false)
+      }
+    }
+
+    input.click()
   }
 
-  const handleRemoveDocument = (field: 'documento_identidade_url' | 'comprovante_endereco_url') => {
+  const handleRemoveDocument = async (
+    field: 'documento_identidade_url' | 'comprovante_endereco_url',
+  ) => {
     if (!isAdmin) {
       toast({
         title: 'Permissão Negada',
-        description: 'Autorização de um Administrador é necessária.',
+        description: 'Autorização de um Administrador é necessária para remover documentos.',
         variant: 'destructive',
       })
       return
     }
     if (!id || !foundContact) return
+
+    const currentUrl = analystData?.[field]
+    if (currentUrl) {
+      try {
+        const urlObj = new URL(currentUrl)
+        const pathMatch = urlObj.pathname.match(/\/analyst-documents\/(.+)$/)
+        if (pathMatch) {
+          await supabase.storage.from('analyst-documents').remove([pathMatch[1]])
+        }
+      } catch {
+        // URL parsing failed, continue with DB update
+      }
+    }
+
     updateRecord('analysts', id, { [field]: null })
-    if (field === 'documento_identidade_url') setDocIdentidadeInput('')
-    else setComprovanteInput('')
     toast({
       title: 'Documento Removido',
       description: 'O documento foi removido com sucesso.',
@@ -696,6 +753,11 @@ export default function ContactProfile() {
                       <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                         Documentos do Analista
                       </h3>
+                      {!isAdmin && (
+                        <Badge className="bg-gray-100 text-gray-600 border-none text-[10px]">
+                          Remoção restrita ao Admin
+                        </Badge>
+                      )}
                     </div>
                     <div className="grid grid-cols-1 gap-4">
                       <div className="p-4 bg-white border border-gray-200 rounded-lg space-y-3">
@@ -708,55 +770,89 @@ export default function ContactProfile() {
                               RG ou Carteira de Habilitação
                             </Label>
                             <p className="text-xs text-gray-500">
-                              Informe o link do documento de identificação.
+                              Envie o documento em formato JPG, PNG ou PDF.
                             </p>
                           </div>
                         </div>
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <Input
-                            value={docIdentidadeInput}
-                            onChange={(e) => setDocIdentidadeInput(e.target.value)}
-                            placeholder="https://exemplo.com/documento.pdf"
-                            className="bg-white flex-1"
-                          />
-                          <Button
-                            onClick={() =>
-                              handleSaveDocument('documento_identidade_url', docIdentidadeInput)
-                            }
-                            size="sm"
-                            className="bg-solved hover:bg-solved-dark text-white shrink-0 gap-1"
-                          >
-                            <Upload className="w-3.5 h-3.5" /> Salvar Link
-                          </Button>
-                          {analystData?.documento_identidade_url && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="shrink-0 gap-1"
+                        {analystData?.documento_identidade_url ? (
+                          <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-md border border-gray-200">
+                            {getDocFileType(analystData.documento_identidade_url) === 'image' ? (
+                              <img
+                                src={analystData.documento_identidade_url}
+                                alt="Documento de Identidade"
+                                className="w-20 h-20 object-cover rounded border border-gray-300 cursor-pointer"
                                 onClick={() =>
                                   setPreviewFile({
-                                    url: analystData.documento_identidade_url,
+                                    url: analystData.documento_identidade_url!,
+                                    name: 'documento_identidade',
+                                    type: 'image',
+                                  })
+                                }
+                              />
+                            ) : (
+                              <div
+                                className="w-20 h-20 flex flex-col items-center justify-center bg-red-50 rounded border border-red-200 cursor-pointer"
+                                onClick={() =>
+                                  setPreviewFile({
+                                    url: analystData.documento_identidade_url!,
                                     name: 'documento_identidade.pdf',
                                     type: 'pdf',
                                   })
                                 }
                               >
-                                <Eye className="w-3.5 h-3.5" /> Visualizar
-                              </Button>
-                              {isAdmin && (
+                                <FileText className="w-8 h-8 text-red-600" />
+                                <span className="text-[10px] text-red-600 font-medium mt-1">
+                                  PDF
+                                </span>
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-800 truncate">
+                                Documento de Identidade
+                              </p>
+                              <div className="flex flex-wrap gap-2 mt-2">
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="shrink-0 gap-1 text-red-600 border-red-200 hover:bg-red-50"
-                                  onClick={() => handleRemoveDocument('documento_identidade_url')}
+                                  className="shrink-0 gap-1"
+                                  onClick={() =>
+                                    setPreviewFile({
+                                      url: analystData.documento_identidade_url!,
+                                      name: 'documento_identidade',
+                                      type: getDocFileType(analystData.documento_identidade_url),
+                                    })
+                                  }
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" /> Remover
+                                  <Eye className="w-3.5 h-3.5" /> Visualizar
                                 </Button>
-                              )}
-                            </>
-                          )}
-                        </div>
+                                {isAdmin && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="shrink-0 gap-1 text-red-600 border-red-200 hover:bg-red-50"
+                                    onClick={() => handleRemoveDocument('documento_identidade_url')}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" /> Remover
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <Button
+                            onClick={() => handleUploadDocument('documento_identidade_url')}
+                            disabled={isUploading}
+                            size="sm"
+                            className="bg-solved hover:bg-solved-dark text-white gap-2"
+                          >
+                            {isUploading ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Upload className="w-4 h-4" />
+                            )}
+                            Enviar Documento
+                          </Button>
+                        )}
                       </div>
 
                       <div className="p-4 bg-white border border-gray-200 rounded-lg space-y-3">
@@ -769,55 +865,89 @@ export default function ContactProfile() {
                               Comprovante de Endereço
                             </Label>
                             <p className="text-xs text-gray-500">
-                              Informe o link do comprovante de residência.
+                              Envie o comprovante em formato JPG, PNG ou PDF.
                             </p>
                           </div>
                         </div>
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <Input
-                            value={comprovanteInput}
-                            onChange={(e) => setComprovanteInput(e.target.value)}
-                            placeholder="https://exemplo.com/comprovante.pdf"
-                            className="bg-white flex-1"
-                          />
-                          <Button
-                            onClick={() =>
-                              handleSaveDocument('comprovante_endereco_url', comprovanteInput)
-                            }
-                            size="sm"
-                            className="bg-solved hover:bg-solved-dark text-white shrink-0 gap-1"
-                          >
-                            <Upload className="w-3.5 h-3.5" /> Salvar Link
-                          </Button>
-                          {analystData?.comprovante_endereco_url && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="shrink-0 gap-1"
+                        {analystData?.comprovante_endereco_url ? (
+                          <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-md border border-gray-200">
+                            {getDocFileType(analystData.comprovante_endereco_url) === 'image' ? (
+                              <img
+                                src={analystData.comprovante_endereco_url}
+                                alt="Comprovante de Endereço"
+                                className="w-20 h-20 object-cover rounded border border-gray-300 cursor-pointer"
                                 onClick={() =>
                                   setPreviewFile({
-                                    url: analystData.comprovante_endereco_url,
+                                    url: analystData.comprovante_endereco_url!,
+                                    name: 'comprovante_endereco',
+                                    type: 'image',
+                                  })
+                                }
+                              />
+                            ) : (
+                              <div
+                                className="w-20 h-20 flex flex-col items-center justify-center bg-red-50 rounded border border-red-200 cursor-pointer"
+                                onClick={() =>
+                                  setPreviewFile({
+                                    url: analystData.comprovante_endereco_url!,
                                     name: 'comprovante_endereco.pdf',
                                     type: 'pdf',
                                   })
                                 }
                               >
-                                <Eye className="w-3.5 h-3.5" /> Visualizar
-                              </Button>
-                              {isAdmin && (
+                                <FileText className="w-8 h-8 text-red-600" />
+                                <span className="text-[10px] text-red-600 font-medium mt-1">
+                                  PDF
+                                </span>
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-800 truncate">
+                                Comprovante de Endereço
+                              </p>
+                              <div className="flex flex-wrap gap-2 mt-2">
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="shrink-0 gap-1 text-red-600 border-red-200 hover:bg-red-50"
-                                  onClick={() => handleRemoveDocument('comprovante_endereco_url')}
+                                  className="shrink-0 gap-1"
+                                  onClick={() =>
+                                    setPreviewFile({
+                                      url: analystData.comprovante_endereco_url!,
+                                      name: 'comprovante_endereco',
+                                      type: getDocFileType(analystData.comprovante_endereco_url),
+                                    })
+                                  }
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" /> Remover
+                                  <Eye className="w-3.5 h-3.5" /> Visualizar
                                 </Button>
-                              )}
-                            </>
-                          )}
-                        </div>
+                                {isAdmin && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="shrink-0 gap-1 text-red-600 border-red-200 hover:bg-red-50"
+                                    onClick={() => handleRemoveDocument('comprovante_endereco_url')}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" /> Remover
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <Button
+                            onClick={() => handleUploadDocument('comprovante_endereco_url')}
+                            disabled={isUploading}
+                            size="sm"
+                            className="bg-solved hover:bg-solved-dark text-white gap-2"
+                          >
+                            {isUploading ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Upload className="w-4 h-4" />
+                            )}
+                            Enviar Comprovante
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
