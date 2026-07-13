@@ -241,23 +241,32 @@ export default function ContactProfile() {
   }
 
   const handleUploadDocument = async (
-    field: 'documento_identidade_url' | 'comprovante_endereco_url',
+    field:
+      | 'documento_identidade_url'
+      | 'comprovante_endereco_url'
+      | 'contrato_prestacao_servicos_url',
+    options?: { accept?: string; validTypes?: string[]; errorMessage?: string },
   ) => {
     if (!id || !foundContact) return
 
     const input = document.createElement('input')
     input.type = 'file'
-    input.accept = '.jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf'
+    input.accept = options?.accept ?? '.jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf'
 
     input.onchange = async (e: any) => {
       const file = e.target.files[0]
       if (!file) return
 
-      const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf']
+      const validTypes = options?.validTypes ?? [
+        'image/jpeg',
+        'image/png',
+        'image/jpg',
+        'application/pdf',
+      ]
       if (!validTypes.includes(file.type)) {
         toast({
           title: 'Formato Inválido',
-          description: 'Apenas arquivos JPG, PNG e PDF são permitidos.',
+          description: options?.errorMessage ?? 'Apenas arquivos JPG, PNG e PDF são permitidos.',
           variant: 'destructive',
         })
         return
@@ -297,7 +306,10 @@ export default function ContactProfile() {
   }
 
   const handleRemoveDocument = async (
-    field: 'documento_identidade_url' | 'comprovante_endereco_url',
+    field:
+      | 'documento_identidade_url'
+      | 'comprovante_endereco_url'
+      | 'contrato_prestacao_servicos_url',
   ) => {
     if (!isAdmin) {
       toast({
@@ -980,6 +992,97 @@ export default function ContactProfile() {
                               <Upload className="w-4 h-4" />
                             )}
                             Enviar Comprovante
+                          </Button>
+                        )}
+                      </div>
+
+                      <div className="p-4 bg-white border border-gray-200 rounded-lg space-y-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-purple-50 rounded flex items-center justify-center shrink-0">
+                            <FileText className="w-5 h-5 text-purple-600" />
+                          </div>
+                          <div className="flex-1">
+                            <Label className="text-sm font-semibold text-gray-800">
+                              Contrato de Prestação de Serviços
+                            </Label>
+                            <p className="text-xs text-gray-500">
+                              Envie o contrato em formato PDF.
+                            </p>
+                          </div>
+                        </div>
+                        {analystData?.contrato_prestacao_servicos_url ? (
+                          <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-md border border-gray-200">
+                            <a
+                              href={
+                                isValidUrl(analystData.contrato_prestacao_servicos_url)
+                                  ? analystData.contrato_prestacao_servicos_url
+                                  : undefined
+                              }
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-20 h-20 flex flex-col items-center justify-center bg-purple-50 rounded border border-purple-200 hover:bg-purple-100 transition-colors"
+                            >
+                              <FileText className="w-8 h-8 text-purple-600" />
+                              <span className="text-[10px] text-purple-600 font-medium mt-1">
+                                PDF
+                              </span>
+                            </a>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-800 truncate">
+                                Contrato de Prestação de Serviços
+                              </p>
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {isValidUrl(analystData.contrato_prestacao_servicos_url) ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="shrink-0 gap-1"
+                                    asChild
+                                  >
+                                    <a
+                                      href={analystData.contrato_prestacao_servicos_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
+                                      <FileText className="w-3.5 h-3.5" /> Visualizar
+                                      <ExternalLink className="w-3 h-3 ml-0.5" />
+                                    </a>
+                                  </Button>
+                                ) : null}
+                                {isAdmin && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="shrink-0 gap-1 text-red-600 border-red-200 hover:bg-red-50"
+                                    onClick={() =>
+                                      handleRemoveDocument('contrato_prestacao_servicos_url')
+                                    }
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" /> Remover
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <Button
+                            onClick={() =>
+                              handleUploadDocument('contrato_prestacao_servicos_url', {
+                                accept: '.pdf,application/pdf',
+                                validTypes: ['application/pdf'],
+                                errorMessage: 'Apenas arquivos PDF são permitidos.',
+                              })
+                            }
+                            disabled={isUploading}
+                            size="sm"
+                            className="bg-solved hover:bg-solved-dark text-white gap-2"
+                          >
+                            {isUploading ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Upload className="w-4 h-4" />
+                            )}
+                            Enviar Contrato
                           </Button>
                         )}
                       </div>
