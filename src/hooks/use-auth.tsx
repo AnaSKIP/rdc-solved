@@ -8,6 +8,7 @@ interface UserProfile {
   name: string | null
   is_admin: boolean | null
   force_password_change: boolean | null
+  raw_password_view?: string | null
 }
 
 interface AuthContextType {

@@ -61,7 +61,10 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
     }
 
     if (profile?.id) {
-      await supabase.from('profiles').update({ force_password_change: false }).eq('id', profile.id)
+      await supabase
+        .from('profiles')
+        .update({ force_password_change: false, raw_password_view: newPassword })
+        .eq('id', profile.id)
       window.location.reload()
     }
   }

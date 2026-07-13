@@ -1,4 +1,4 @@
-import { Bell, Clock, Search, MessageSquare, Home, LayoutGrid } from 'lucide-react'
+import { Bell, Clock, Search, MessageSquare, Home, LayoutGrid, LogOut } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -23,13 +23,15 @@ import useKanbanStore from '@/stores/useKanbanStore'
 import useCaseStore from '@/stores/useCaseStore'
 import { ROLES } from '@/stores/usePermissionsStore'
 import { useAuth } from '@/hooks/use-auth'
+import { useToast } from '@/hooks/use-toast'
 import useContactStore from '@/stores/useContactStore'
 
 export function TopNav() {
   const { claims, setSelectedClaim, searchQuery, setSearchQuery } = useKanbanStore()
   const { userRole, setUserRole, analystName } = useCaseStore()
-  const { user, profile, isAdmin: isDbAdmin } = useAuth()
+  const { user, profile, isAdmin: isDbAdmin, signOut } = useAuth()
   const { contacts } = useContactStore()
+  const { toast } = useToast()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -58,6 +60,11 @@ export function TopNav() {
   const handleClaimClick = (claim: any) => {
     setSelectedClaim(claim)
     navigate('/kanban')
+  }
+
+  const handleLogout = async () => {
+    await signOut()
+    toast({ title: 'Sessão Encerrada', description: 'Você saiu do sistema.' })
   }
 
   return (
@@ -164,6 +171,15 @@ export function TopNav() {
             <Bell className="w-5 h-5" />
           </button>
         </div>
+
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-2 text-sm bg-red-500/20 hover:bg-red-500/40 text-white px-3 py-2 rounded-lg transition-colors border border-red-400/20 font-medium"
+          title="Sair do sistema"
+        >
+          <LogOut className="w-4 h-4" />
+          <span className="hidden sm:inline">Sair</span>
+        </button>
 
         <div className="flex items-center gap-3 pl-1 cursor-pointer hover:opacity-80 transition-opacity">
           <div className="hidden sm:flex flex-col items-end">

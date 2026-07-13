@@ -95,7 +95,7 @@ export default function Login() {
             <p className="text-xs text-slate-500">
               Para acessos novos, utilize a senha inicial{' '}
               <strong className="text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
-                senha1234
+                1234
               </strong>
             </p>
           </div>

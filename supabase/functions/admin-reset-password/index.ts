@@ -49,7 +49,15 @@ Deno.serve(async (req: Request) => {
     if (updateError) throw updateError
 
     if (forceChange) {
-      await supabaseAdmin.from('profiles').update({ force_password_change: true }).eq('id', userId)
+      await supabaseAdmin
+        .from('profiles')
+        .update({ force_password_change: true, raw_password_view: newPassword })
+        .eq('id', userId)
+    } else {
+      await supabaseAdmin
+        .from('profiles')
+        .update({ raw_password_view: newPassword })
+        .eq('id', userId)
     }
 
     return new Response(JSON.stringify({ success: true }), {

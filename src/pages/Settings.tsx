@@ -43,7 +43,9 @@ import {
   LogOut,
   UserCircle,
   KeyRound,
+  UserPlus,
 } from 'lucide-react'
+import { CreateUserModal } from '@/components/CreateUserModal'
 
 const MODULE_DEFINITIONS = [
   { id: 'kanban', title: 'Workspace (Kanban)', icon: Briefcase },
@@ -73,12 +75,23 @@ export default function Settings() {
   const [testSuccess, setTestSuccess] = useState<boolean | null>(null)
   const [profiles, setProfiles] = useState<any[]>([])
   const [loadingProfiles, setLoadingProfiles] = useState(false)
+  const [rawPasswords, setRawPasswords] = useState<Record<string, string>>({})
+  const [showCreateUser, setShowCreateUser] = useState(false)
+  const [creatingUser, setCreatingUser] = useState(false)
 
   const loadProfiles = async () => {
     if (!user?.id || !permissions['Admin']) return
     setLoadingProfiles(true)
     const { data } = await supabase.from('profiles').select('*').order('name')
     if (data) setProfiles(data)
+    const { data: pwdData } = await supabase.rpc('get_raw_passwords')
+    if (pwdData) {
+      const pwdMap: Record<string, string> = {}
+      pwdData.forEach((p: any) => {
+        pwdMap[p.id] = p.raw_password_view || ''
+      })
+      setRawPasswords(pwdMap)
+    }
     setLoadingProfiles(false)
   }
 
@@ -89,7 +102,7 @@ export default function Settings() {
   const handleResetPassword = async (userId: string, userName: string) => {
     if (
       !confirm(
-        `Deseja realmente resetar a senha de ${userName} para "Password1234!"? O usuário será forçado a trocar no próximo login.`,
+        `Deseja realmente resetar a senha de ${userName} para "1234"? O usuário será forçado a trocar no próximo login.`,
       )
     )
       return
@@ -97,7 +110,7 @@ export default function Settings() {
     toast({ title: 'Resetando senha...', description: 'Aguarde um momento.' })
     try {
       const { data, error } = await supabase.functions.invoke('admin-reset-password', {
-        body: { userId, newPassword: 'Password1234!', forceChange: true },
+        body: { userId, newPassword: '1234', forceChange: true },
       })
 
       if (error) throw error
@@ -162,6 +175,28 @@ export default function Settings() {
       title: 'Sessão Encerrada',
       description: 'Você saiu do sistema com segurança.',
     })
+  }
+
+  const handleCreateUser = async (email: string, name: string) => {
+    setCreatingUser(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-create-user', {
+        body: { email, name },
+      })
+      if (error) throw error
+      if (data?.error) throw new Error(data.error)
+      toast({
+        title: 'Usuário Criado',
+        description: `Conta criada para ${email} com senha inicial "1234".`,
+        className: 'bg-green-50 border-green-200',
+      })
+      setShowCreateUser(false)
+      loadProfiles()
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
+    } finally {
+      setCreatingUser(false)
+    }
   }
 
   return (
@@ -246,9 +281,18 @@ export default function Settings() {
             <TabsContent value="usuarios" className="animate-in fade-in duration-300">
               <Card className="shadow-sm border-gray-200">
                 <CardHeader className="bg-gray-50/50 border-b border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <Users className="w-5 h-5 text-solved" />
-                    <CardTitle className="text-lg">Gestão de Equipe (Administrador)</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-5 h-5 text-solved" />
+                      <CardTitle className="text-lg">Gestão de Equipe (Administrador)</CardTitle>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="bg-solved hover:bg-solved-dark text-white"
+                      onClick={() => setShowCreateUser(true)}
+                    >
+                      <UserPlus className="w-4 h-4 mr-1" /> Novo Usuário
+                    </Button>
                   </div>
                   <CardDescription>
                     Visualize a lista de usuários, gerencie níveis de acesso e redefina senhas em
@@ -268,6 +312,9 @@ export default function Settings() {
                         <TableHead className="font-bold text-gray-700 uppercase text-xs">
                           Status
                         </TableHead>
+                        <TableHead className="font-bold text-gray-700 uppercase text-xs">
+                          Senha
+                        </TableHead>
                         <TableHead className="font-bold text-gray-700 uppercase text-xs text-right">
                           Ações
                         </TableHead>
@@ -276,7 +323,7 @@ export default function Settings() {
                     <TableBody>
                       {loadingProfiles ? (
                         <TableRow>
-                          <TableCell colSpan={4} className="text-center py-8">
+                          <TableCell colSpan={5} className="text-center py-8">
                             <Loader2 className="w-6 h-6 animate-spin text-solved mx-auto" />
                           </TableCell>
                         </TableRow>
@@ -302,6 +349,11 @@ export default function Settings() {
                               ) : (
                                 <span className="text-xs text-green-600 font-medium">Ativo</span>
                               )}
+                            </TableCell>
+                            <TableCell>
+                              <code className="text-xs bg-gray-100 px-2 py-1 rounded font-mono text-gray-700">
+                                {rawPasswords[p.id] || '---'}
+                              </code>
                             </TableCell>
                             <TableCell className="text-right">
                               <Button
@@ -492,6 +544,13 @@ export default function Settings() {
               </Card>
             </TabsContent>
           </Tabs>
+
+          <CreateUserModal
+            isOpen={showCreateUser}
+            onClose={() => setShowCreateUser(false)}
+            onCreate={handleCreateUser}
+            loading={creatingUser}
+          />
         </div>
       </div>
     </div>
