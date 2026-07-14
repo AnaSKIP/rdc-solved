@@ -160,7 +160,7 @@ export default function Settings() {
     setTestSuccess(null)
     setTestError(null)
     setTestCount(null)
-    const result = await testConnection()
+    const result = await testConnection({ url, db, username, apiKey })
     setIsTesting(false)
     setTestSuccess(result.success)
 

@@ -47,7 +47,9 @@ interface OdooImportState {
   resumeImport: () => void
   retryBatch: () => void
   resetImport: () => void
-  testConnection: () => Promise<{ success: boolean; error?: string; count?: number }>
+  testConnection: (
+    overrideCreds?: OdooCredentials,
+  ) => Promise<{ success: boolean; error?: string; count?: number }>
   isTransferring: boolean
   transferLeads: () => Promise<void>
 }
@@ -312,21 +314,41 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
     setEta(null)
   }
 
-  const testConnection = async (): Promise<{
-    success: boolean
-    error?: string
-    count?: number
-  }> => {
-    if (!credentials) return { success: false, error: 'Credenciais não configuradas.' }
+  const testConnection = async (
+    overrideCreds?: OdooCredentials,
+  ): Promise<{ success: boolean; error?: string; count?: number }> => {
+    const creds = overrideCreds || credentials
+    if (!creds) return { success: false, error: 'Credenciais não configuradas.' }
     try {
       const { data, error } = await supabase.functions.invoke('odoo-sync', {
-        body: { ...credentials, countOnly: true },
+        body: { ...creds, countOnly: true },
       })
       if (data?.error) {
         return { success: false, error: data.error }
       }
-      if (error && !data) {
-        return { success: false, error: 'Erro de conexão com o servidor de funções.' }
+      if (error) {
+        let errorMsg = 'Erro de conexão com o servidor de funções.'
+        try {
+          const ctx = (error as any).context
+          if (ctx) {
+            const status = ctx.status
+            const body = await ctx.json()
+            if (body?.error) {
+              errorMsg = body.error
+            } else if (body?.message) {
+              errorMsg = body.message
+            } else if (status >= 500) {
+              errorMsg = `Internal Server Error${body ? ': ' + JSON.stringify(body) : ''}`
+            } else if (status >= 400) {
+              errorMsg = `Erro ${status}: ${error.message}`
+            }
+          } else {
+            errorMsg = error.message || errorMsg
+          }
+        } catch {
+          errorMsg = error.message || errorMsg
+        }
+        return { success: false, error: errorMsg }
       }
       if (!data?.success) {
         return { success: false, error: 'Resposta inválida do servidor.' }

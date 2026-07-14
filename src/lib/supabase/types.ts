@@ -801,6 +801,51 @@ export type Database = {
         }
         Relationships: []
       }
+      odoo_sync_logs: {
+        Row: {
+          created_at: string | null
+          details: Json | null
+          duplicates_avoided: number | null
+          end_date_filter: string | null
+          error_message: string | null
+          id: string
+          operation_type: string
+          start_date_filter: string | null
+          status: string
+          total_errors: number | null
+          total_processed: number | null
+          total_success: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          details?: Json | null
+          duplicates_avoided?: number | null
+          end_date_filter?: string | null
+          error_message?: string | null
+          id?: string
+          operation_type?: string
+          start_date_filter?: string | null
+          status?: string
+          total_errors?: number | null
+          total_processed?: number | null
+          total_success?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          details?: Json | null
+          duplicates_avoided?: number | null
+          end_date_filter?: string | null
+          error_message?: string | null
+          id?: string
+          operation_type?: string
+          start_date_filter?: string | null
+          status?: string
+          total_errors?: number | null
+          total_processed?: number | null
+          total_success?: number | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
