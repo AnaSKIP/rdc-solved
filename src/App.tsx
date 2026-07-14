@@ -18,7 +18,6 @@ import Sandbox from './pages/Sandbox'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 import RequireAuth from './components/RequireAuth'
-import AutomationFAB from './components/AutomationFAB'
 import { CaseProvider } from './stores/useCaseStore'
 import { OdooImportProvider } from './stores/useOdooImportStore'
 import { ContactProvider } from './stores/useContactStore'
@@ -39,7 +38,6 @@ const App = () => (
                   <TooltipProvider>
                     <Toaster />
                     <Sonner />
-                    <AutomationFAB />
                     <Routes>
                       <Route
                         element={
