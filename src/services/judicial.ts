@@ -41,7 +41,8 @@ export const fetchJudicialClaims = async (): Promise<JudicialClaim[]> => {
   const judicialClaims = data.filter(
     (c) =>
       (c.judicial_process_number && c.judicial_process_number.trim() !== '') ||
-      c.stage === 'Judicial',
+      c.stage === 'Judicial' ||
+      c.judicial_status === 'Em Juízo',
   )
 
   const clientIds = [...new Set(judicialClaims.map((c) => c.client_id).filter(Boolean))] as string[]
@@ -95,6 +96,18 @@ export const updateJudicialStatus = async (claimId: string, status: string): Pro
   const { error } = await supabase
     .from('claims')
     .update({ judicial_status: status })
+    .eq('id', claimId)
+
+  if (error) throw error
+}
+
+export const updateJudicialProcessNumber = async (
+  claimId: string,
+  processNumber: string,
+): Promise<void> => {
+  const { error } = await supabase
+    .from('claims')
+    .update({ judicial_process_number: processNumber })
     .eq('id', claimId)
 
   if (error) throw error

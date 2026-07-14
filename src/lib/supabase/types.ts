@@ -726,6 +726,45 @@ export type Database = {
         }
         Relationships: []
       }
+      judicial_movements: {
+        Row: {
+          claim_id: string
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+        }
+        Insert: {
+          claim_id: string
+          created_at?: string
+          created_by?: string | null
+          description: string
+          id?: string
+        }
+        Update: {
+          claim_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'judicial_movements_claim_id_fkey'
+            columns: ['claim_id']
+            isOneToOne: false
+            referencedRelation: 'claims'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'judicial_movements_created_by_fkey'
+            columns: ['created_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       leads: {
         Row: {
           analista_id: string | null

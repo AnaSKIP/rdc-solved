@@ -116,6 +116,7 @@ export const KanbanProvider = ({ children }: { children: React.ReactNode }) => {
     }
     if (data) {
       const mapped: KanbanClaim[] = data
+        .filter((d) => (d as any)?.judicial_status !== 'Em Juízo')
         .map((d) => {
           const clientContact = contacts.find((c) => c?.id === d?.client_id?.toString())
           const clientByCnpj =

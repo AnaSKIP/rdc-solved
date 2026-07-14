@@ -8,6 +8,7 @@ import {
   fetchJudicialMovements,
   addJudicialMovement,
   updateJudicialStatus,
+  updateJudicialProcessNumber,
   type JudicialMovement,
   type JudicialClaim,
 } from '@/services/judicial'
@@ -26,6 +27,7 @@ export function JudicialCaseDetail({ claim, onBack, onUpdate }: Props) {
   const [movements, setMovements] = useState<JudicialMovement[]>([])
   const [newMovement, setNewMovement] = useState('')
   const [judicialStatus, setJudicialStatus] = useState(claim.judicial_status || '')
+  const [processNumber, setProcessNumber] = useState(claim.judicial_process_number || '')
   const [previewFile, setPreviewFile] = useState<{
     url: string
     name: string
@@ -34,6 +36,7 @@ export function JudicialCaseDetail({ claim, onBack, onUpdate }: Props) {
 
   useEffect(() => {
     setJudicialStatus(claim.judicial_status || '')
+    setProcessNumber(claim.judicial_process_number || '')
     fetchJudicialMovements(claim.id).then(setMovements).catch(console.error)
   }, [claim])
 
@@ -57,6 +60,19 @@ export function JudicialCaseDetail({ claim, onBack, onUpdate }: Props) {
       await updateJudicialStatus(claim.id, judicialStatus)
       toast({
         title: 'Status atualizado',
+        className: 'bg-green-50 border-green-200 text-green-900',
+      })
+      onUpdate()
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' })
+    }
+  }
+
+  const handleProcessNumberSave = async () => {
+    try {
+      await updateJudicialProcessNumber(claim.id, processNumber)
+      toast({
+        title: 'Número do processo atualizado',
         className: 'bg-green-50 border-green-200 text-green-900',
       })
       onUpdate()
@@ -136,6 +152,24 @@ export function JudicialCaseDetail({ claim, onBack, onUpdate }: Props) {
             />
             <Button
               onClick={handleStatusSave}
+              size="sm"
+              className="bg-solved hover:bg-solved-dark text-white shrink-0"
+            >
+              Salvar
+            </Button>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-lg border shadow-sm">
+          <h3 className="text-xs font-bold text-gray-500 uppercase mb-3">Número do Processo</h3>
+          <div className="flex gap-2">
+            <Input
+              value={processNumber}
+              onChange={(e) => setProcessNumber(e.target.value)}
+              placeholder="Ex: 0001234-56.2025.8.27.0001"
+            />
+            <Button
+              onClick={handleProcessNumberSave}
               size="sm"
               className="bg-solved hover:bg-solved-dark text-white shrink-0"
             >

@@ -16,6 +16,7 @@ import {
   Upload,
   Paperclip,
   FileText,
+  Scale,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import {
@@ -437,6 +438,15 @@ export function CaseForm() {
         description: 'Você marcou a interação do lead como analisada.',
       })
     }
+  }
+
+  const handleSendToJudicial = () => {
+    if (!selectedClaim?.id) return
+    updateClaim(selectedClaim.id.toString(), { judicialStatus: 'Em Juízo' })
+    toast({
+      title: 'Caso encaminhado para o Departamento Jurídico com sucesso.',
+      className: 'bg-green-50 border-green-200 text-green-900',
+    })
   }
 
   const commissionPct = assumedClaimValue >= 10000 ? 5 : 4
@@ -1148,33 +1158,35 @@ export function CaseForm() {
               <FinancialPanel />
             </div>
 
-            {causerIntention === 'nao_assume' && (
-              <div className="bg-red-50/50 p-4 rounded-md border border-red-200 mb-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <AlertTriangle className="w-5 h-5 text-red-600" />
-                  <h3 className="font-bold text-red-900 uppercase text-sm tracking-wider">
-                    Ação Judicial
-                  </h3>
-                </div>
-                <p className="text-xs text-red-800 mb-3">
-                  Causador não assume. Caso encaminhado para o jurídico.
-                </p>
-                <div className="space-y-3">
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-red-900 font-semibold">Número do Processo</Label>
-                    <Input
-                      value={judicialProcessNumber}
-                      onChange={(e) => setJudicialProcessNumber(e.target.value)}
-                      onBlur={() =>
-                        handleSaveData({ judicialProcessNumber }, 'Nº do processo salvo')
-                      }
-                      placeholder="Ex: 0001234-56.2025.8.27.0001"
-                      className="h-8 text-sm bg-white border-red-200 focus-visible:ring-red-500"
-                    />
-                  </div>
-                </div>
+            <div className="bg-red-50/50 p-4 rounded-md border border-red-200 mb-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Scale className="w-5 h-5 text-red-600" />
+                <h3 className="font-bold text-red-900 uppercase text-sm tracking-wider">
+                  Ação Judicial
+                </h3>
               </div>
-            )}
+              {selectedClaim?.judicialStatus === 'Em Juízo' ? (
+                <div className="flex items-center gap-2 text-xs text-green-800 font-semibold bg-green-50 p-3 rounded border border-green-200">
+                  <Check className="w-4 h-4 text-green-600 shrink-0" />
+                  Caso já encaminhado para o Departamento Jurídico. O número do processo poderá ser
+                  cadastrado na aba "Ações Judiciais".
+                </div>
+              ) : (
+                <>
+                  <p className="text-xs text-red-800 mb-3">
+                    Encaminhe este caso para o departamento jurídico. O número do processo poderá
+                    ser cadastrado posteriormente na aba "Ações Judiciais".
+                  </p>
+                  <Button
+                    onClick={handleSendToJudicial}
+                    className="w-full bg-red-600 hover:bg-red-700 text-white gap-2 shadow-sm"
+                  >
+                    <Scale className="w-4 h-4" />
+                    AÇÃO JUDICIAL
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
