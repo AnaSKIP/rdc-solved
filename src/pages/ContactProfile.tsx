@@ -22,7 +22,6 @@ import {
   Upload,
   Trash2,
   Wallet,
-  ExternalLink,
 } from 'lucide-react'
 import useContactStore from '@/stores/useContactStore'
 import { Badge } from '@/components/ui/badge'
@@ -798,21 +797,22 @@ export default function ContactProfile() {
                                 }
                               />
                             ) : (
-                              <a
-                                href={
-                                  isValidUrl(analystData.documento_identidade_url)
-                                    ? analystData.documento_identidade_url
-                                    : undefined
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setPreviewFile({
+                                    url: analystData.documento_identidade_url,
+                                    name: 'documento_identidade',
+                                    type: 'pdf',
+                                  })
                                 }
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="w-20 h-20 flex flex-col items-center justify-center bg-red-50 rounded border border-red-200 hover:bg-red-100 transition-colors"
+                                className="w-20 h-20 flex flex-col items-center justify-center bg-red-50 rounded border border-red-200 hover:bg-red-100 transition-colors cursor-pointer"
                               >
                                 <FileText className="w-8 h-8 text-red-600" />
                                 <span className="text-[10px] text-red-600 font-medium mt-1">
                                   PDF
                                 </span>
-                              </a>
+                              </button>
                             )}
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-gray-800 truncate">
@@ -840,16 +840,15 @@ export default function ContactProfile() {
                                     size="sm"
                                     variant="outline"
                                     className="shrink-0 gap-1"
-                                    asChild
+                                    onClick={() =>
+                                      setPreviewFile({
+                                        url: analystData.documento_identidade_url,
+                                        name: 'documento_identidade',
+                                        type: 'pdf',
+                                      })
+                                    }
                                   >
-                                    <a
-                                      href={analystData.documento_identidade_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                    >
-                                      <FileText className="w-3.5 h-3.5" /> Visualizar PDF
-                                      <ExternalLink className="w-3 h-3 ml-0.5" />
-                                    </a>
+                                    <FileText className="w-3.5 h-3.5" /> Visualizar PDF
                                   </Button>
                                 ) : null}
                                 {isAdmin && (
@@ -912,21 +911,22 @@ export default function ContactProfile() {
                                 }
                               />
                             ) : (
-                              <a
-                                href={
-                                  isValidUrl(analystData.comprovante_endereco_url)
-                                    ? analystData.comprovante_endereco_url
-                                    : undefined
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setPreviewFile({
+                                    url: analystData.comprovante_endereco_url,
+                                    name: 'comprovante_endereco',
+                                    type: 'pdf',
+                                  })
                                 }
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="w-20 h-20 flex flex-col items-center justify-center bg-red-50 rounded border border-red-200 hover:bg-red-100 transition-colors"
+                                className="w-20 h-20 flex flex-col items-center justify-center bg-red-50 rounded border border-red-200 hover:bg-red-100 transition-colors cursor-pointer"
                               >
                                 <FileText className="w-8 h-8 text-red-600" />
                                 <span className="text-[10px] text-red-600 font-medium mt-1">
                                   PDF
                                 </span>
-                              </a>
+                              </button>
                             )}
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-gray-800 truncate">
@@ -954,16 +954,15 @@ export default function ContactProfile() {
                                     size="sm"
                                     variant="outline"
                                     className="shrink-0 gap-1"
-                                    asChild
+                                    onClick={() =>
+                                      setPreviewFile({
+                                        url: analystData.comprovante_endereco_url,
+                                        name: 'comprovante_endereco',
+                                        type: 'pdf',
+                                      })
+                                    }
                                   >
-                                    <a
-                                      href={analystData.comprovante_endereco_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                    >
-                                      <FileText className="w-3.5 h-3.5" /> Visualizar PDF
-                                      <ExternalLink className="w-3 h-3 ml-0.5" />
-                                    </a>
+                                    <FileText className="w-3.5 h-3.5" /> Visualizar PDF
                                   </Button>
                                 ) : null}
                                 {isAdmin && (
@@ -1012,21 +1011,22 @@ export default function ContactProfile() {
                         </div>
                         {analystData?.contrato_prestacao_servicos_url ? (
                           <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-md border border-gray-200">
-                            <a
-                              href={
-                                isValidUrl(analystData.contrato_prestacao_servicos_url)
-                                  ? analystData.contrato_prestacao_servicos_url
-                                  : undefined
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPreviewFile({
+                                  url: analystData.contrato_prestacao_servicos_url,
+                                  name: 'contrato_prestacao_servicos',
+                                  type: 'pdf',
+                                })
                               }
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="w-20 h-20 flex flex-col items-center justify-center bg-purple-50 rounded border border-purple-200 hover:bg-purple-100 transition-colors"
+                              className="w-20 h-20 flex flex-col items-center justify-center bg-purple-50 rounded border border-purple-200 hover:bg-purple-100 transition-colors cursor-pointer"
                             >
                               <FileText className="w-8 h-8 text-purple-600" />
                               <span className="text-[10px] text-purple-600 font-medium mt-1">
                                 PDF
                               </span>
-                            </a>
+                            </button>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-gray-800 truncate">
                                 Contrato de Prestação de Serviços
@@ -1037,16 +1037,15 @@ export default function ContactProfile() {
                                     size="sm"
                                     variant="outline"
                                     className="shrink-0 gap-1"
-                                    asChild
+                                    onClick={() =>
+                                      setPreviewFile({
+                                        url: analystData.contrato_prestacao_servicos_url,
+                                        name: 'contrato_prestacao_servicos',
+                                        type: 'pdf',
+                                      })
+                                    }
                                   >
-                                    <a
-                                      href={analystData.contrato_prestacao_servicos_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                    >
-                                      <FileText className="w-3.5 h-3.5" /> Visualizar
-                                      <ExternalLink className="w-3 h-3 ml-0.5" />
-                                    </a>
+                                    <FileText className="w-3.5 h-3.5" /> Visualizar
                                   </Button>
                                 ) : null}
                                 {isAdmin && (

@@ -301,8 +301,6 @@ export function CaseLog() {
                         <a
                           href={file.url}
                           download={file.file_name}
-                          target="_blank"
-                          rel="noreferrer"
                           className="text-gray-400 hover:text-blue-600 transition-colors p-1"
                           onClick={(e) => e.stopPropagation()}
                         >
