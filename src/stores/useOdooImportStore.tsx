@@ -47,7 +47,7 @@ interface OdooImportState {
   resumeImport: () => void
   retryBatch: () => void
   resetImport: () => void
-  testConnection: () => Promise<boolean>
+  testConnection: () => Promise<{ success: boolean; error?: string; count?: number }>
   isTransferring: boolean
   transferLeads: () => Promise<void>
 }
@@ -312,16 +312,28 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
     setEta(null)
   }
 
-  const testConnection = async () => {
-    if (!credentials) return false
+  const testConnection = async (): Promise<{
+    success: boolean
+    error?: string
+    count?: number
+  }> => {
+    if (!credentials) return { success: false, error: 'Credenciais não configuradas.' }
     try {
       const { data, error } = await supabase.functions.invoke('odoo-sync', {
         body: { ...credentials, countOnly: true },
       })
-      if (error || !data?.success) return false
-      return true
-    } catch {
-      return false
+      if (data?.error) {
+        return { success: false, error: data.error }
+      }
+      if (error && !data) {
+        return { success: false, error: 'Erro de conexão com o servidor de funções.' }
+      }
+      if (!data?.success) {
+        return { success: false, error: 'Resposta inválida do servidor.' }
+      }
+      return { success: true, count: data.count }
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Erro desconhecido ao testar conexão.' }
     }
   }
 

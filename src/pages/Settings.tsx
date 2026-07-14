@@ -44,6 +44,7 @@ import {
   UserCircle,
   KeyRound,
   UserPlus,
+  AlertCircle,
 } from 'lucide-react'
 import { CreateUserModal } from '@/components/CreateUserModal'
 
@@ -73,6 +74,8 @@ export default function Settings() {
   const [apiKey, setApiKey] = useState(credentials?.apiKey || '')
   const [isTesting, setIsTesting] = useState(false)
   const [testSuccess, setTestSuccess] = useState<boolean | null>(null)
+  const [testError, setTestError] = useState<string | null>(null)
+  const [testCount, setTestCount] = useState<number | null>(null)
   const [profiles, setProfiles] = useState<any[]>([])
   const [loadingProfiles, setLoadingProfiles] = useState(false)
   const [rawPasswords, setRawPasswords] = useState<Record<string, string>>({})
@@ -155,16 +158,28 @@ export default function Settings() {
     }
     setIsTesting(true)
     setTestSuccess(null)
-    const success = await testConnection()
+    setTestError(null)
+    setTestCount(null)
+    const result = await testConnection()
     setIsTesting(false)
-    setTestSuccess(success)
+    setTestSuccess(result.success)
 
-    if (success) {
+    if (result.success) {
+      setTestCount(result.count ?? null)
       toast({
         title: 'Conexão Bem-sucedida',
         description:
-          'A API do Odoo está acessível e as credenciais são válidas para sincronização.',
+          result.count !== undefined
+            ? `A API do Odoo está acessível. ${result.count} leads em Repescagem encontrados.`
+            : 'A API do Odoo está acessível e as credenciais são válidas para sincronização.',
         className: 'bg-green-50 border-green-200',
+      })
+    } else {
+      setTestError(result.error || 'Falha na conexão. Verifique os dados fornecidos.')
+      toast({
+        title: 'Falha na Conexão',
+        description: result.error || 'Verifique os dados fornecidos.',
+        variant: 'destructive',
       })
     }
   }
@@ -515,12 +530,18 @@ export default function Settings() {
 
                   {testSuccess !== null && (
                     <div
-                      className={`mt-4 p-3 rounded-md flex items-center gap-2 text-sm font-medium ${testSuccess ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}
+                      className={`mt-4 p-3 rounded-md flex items-start gap-2 text-sm font-medium ${testSuccess ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}
                     >
-                      {testSuccess ? <CheckCircle2 className="w-4 h-4" /> : null}
-                      {testSuccess
-                        ? 'Conexão estabelecida com sucesso. Pronto para importação.'
-                        : 'Falha na conexão. Verifique os dados fornecidos.'}
+                      {testSuccess ? (
+                        <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                      )}
+                      <div>
+                        {testSuccess
+                          ? `Conexão estabelecida com sucesso.${testCount !== null ? ` ${testCount} leads em Repescagem encontrados.` : ''} Pronto para importação.`
+                          : testError || 'Falha na conexão. Verifique os dados fornecidos.'}
+                      </div>
                     </div>
                   )}
                 </CardContent>

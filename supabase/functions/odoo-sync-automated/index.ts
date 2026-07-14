@@ -34,6 +34,9 @@ Deno.serve(async (req: Request) => {
     })
 
     if (syncError) throw syncError
+    if (odooData?.error) throw new Error(odooData.error)
+    if (!odooData?.success)
+      throw new Error('Falha na sincronização com Odoo: resposta inválida do servidor.')
 
     const realLeads = odooData?.leads || []
     const odooAttachments = odooData?.attachments || []
@@ -154,43 +157,72 @@ Deno.serve(async (req: Request) => {
       const raToClaimId = new Map<string, string>()
       claimsData?.forEach((c: any) => raToClaimId.set(c.ra, c.id))
 
+      const MAX_ATTACHMENTS_PER_RUN = 20
+      let processedAttachments = 0
+      let failedAttachments = 0
+
       for (const att of odooAttachments) {
+        if (processedAttachments >= MAX_ATTACHMENTS_PER_RUN) {
+          console.log(`Limite de ${MAX_ATTACHMENTS_PER_RUN} anexos por execução atingido.`)
+          break
+        }
+
         const ra = odooIdToRa.get(att.res_id)
         if (!ra) continue
         const claimId = raToClaimId.get(ra)
         if (!claimId) continue
 
-        const { data: existingAtt } = await supabase
-          .from('attachments')
-          .select('id')
-          .eq('claim_id', claimId)
-          .eq('file_name', att.name)
-          .maybeSingle()
+        try {
+          const { data: existingAtt } = await supabase
+            .from('attachments')
+            .select('id')
+            .eq('claim_id', claimId)
+            .eq('file_name', att.name)
+            .maybeSingle()
 
-        if (existingAtt) continue
+          if (existingAtt) continue
 
-        const { data: attData } = await supabase.functions.invoke('odoo-sync', {
-          body: {
-            ...credentials,
-            attachmentId: att.id,
-            claimId: claimId,
-          },
-        })
-
-        if (attData?.success) {
-          const mimeType = attData.mimeType || 'application/octet-stream'
-          await supabase.from('attachments').insert({
-            claim_id: claimId,
-            file_name: attData.name || att.name,
-            file_type: mimeType.includes('pdf')
-              ? 'pdf'
-              : mimeType.includes('image')
-                ? 'image'
-                : 'file',
-            url: attData.publicUrl,
+          const { data: attData, error: attError } = await supabase.functions.invoke('odoo-sync', {
+            body: {
+              ...credentials,
+              attachmentId: att.id,
+              claimId: claimId,
+            },
           })
+
+          if (attError || attData?.error) {
+            console.error(`Erro ao baixar anexo ${att.name}:`, attData?.error || attError?.message)
+            failedAttachments++
+            continue
+          }
+
+          if (attData?.success) {
+            const mimeType = attData.mimeType || 'application/octet-stream'
+            const { error: insertError } = await supabase.from('attachments').insert({
+              claim_id: claimId,
+              file_name: attData.name || att.name,
+              file_type: mimeType.includes('pdf')
+                ? 'pdf'
+                : mimeType.includes('image')
+                  ? 'image'
+                  : 'file',
+              url: attData.publicUrl,
+            })
+
+            if (insertError) {
+              console.error(`Erro ao salvar anexo ${att.name}:`, insertError.message)
+              failedAttachments++
+            } else {
+              processedAttachments++
+            }
+          }
+        } catch (attErr: any) {
+          console.error(`Erro ao processar anexo ${att.name}:`, attErr.message)
+          failedAttachments++
         }
       }
+
+      console.log(`Anexos: ${processedAttachments} processados, ${failedAttachments} falhas.`)
     }
 
     return new Response(JSON.stringify({ success: true, processed: batchRecords.length }), {
