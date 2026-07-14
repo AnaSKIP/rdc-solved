@@ -468,6 +468,10 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
 
               if (isDuplicate) {
                 batchDuplicatesAvoided++
+                addLog(
+                  `Registro ${baseRa} já existe na base. Pulando para evitar duplicidade.`,
+                  'warning',
+                )
                 odooIdToRa.set(lead.id, finalRa)
                 continue
               }

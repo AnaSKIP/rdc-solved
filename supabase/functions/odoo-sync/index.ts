@@ -146,14 +146,7 @@ Deno.serve(async (req: Request) => {
         params: {
           service: 'object',
           method: 'execute_kw',
-          args: [
-            db,
-            uid,
-            apiKey,
-            'crm.stage',
-            'search',
-            [['|', ['name', 'ilike', 'Sem Acordo'], ['name', 'ilike', 'Repescagem']]],
-          ],
+          args: [db, uid, apiKey, 'crm.stage', 'search', [['name', 'ilike', 'Repescagem']]],
         },
       }),
     })
@@ -229,7 +222,7 @@ Deno.serve(async (req: Request) => {
 
     let leads = searchData.result || []
 
-    // FILTRO DE DUPLICIDADE: Remove os que já existem no Supabase (Claims)
+    // FILTRO DE DUPLICIDADE: Remove os que já existem no Supabase (Claims, Caixa de Entrada e Importação)
     if (leads.length > 0) {
       const supabaseUrl = Deno.env.get('SUPABASE_URL')!
       const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -237,13 +230,33 @@ Deno.serve(async (req: Request) => {
 
       const raList = leads.map((l: any) => String(l.x_ra || l.name || `RA-${l.id}`).trim())
 
+      const existingRas = new Set<string>()
+
       const { data: existingClaims } = await supabaseAdmin
         .from('claims')
         .select('ra')
         .in('ra', raList)
+      if (existingClaims) {
+        existingClaims.forEach((c: any) => existingRas.add(c.ra))
+      }
 
-      if (existingClaims && existingClaims.length > 0) {
-        const existingRas = new Set(existingClaims.map((c: any) => c.ra))
+      const { data: existingImportacao } = await supabaseAdmin
+        .from('caixa_entrada_importacao')
+        .select('id_ra')
+        .in('id_ra', raList)
+      if (existingImportacao) {
+        existingImportacao.forEach((c: any) => existingRas.add(c.id_ra))
+      }
+
+      const { data: existingCaixa } = await supabaseAdmin
+        .from('caixa_entrada')
+        .select('id_ra')
+        .in('id_ra', raList)
+      if (existingCaixa) {
+        existingCaixa.forEach((c: any) => existingRas.add(c.id_ra))
+      }
+
+      if (existingRas.size > 0) {
         leads = leads.filter((l: any) => {
           const lRa = String(l.x_ra || l.name || `RA-${l.id}`).trim()
           return !existingRas.has(lRa)

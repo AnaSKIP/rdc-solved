@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils'
 import { DownloadCloud, Calendar } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { DatePicker } from '@/components/DatePicker'
 
 export default function ImportDashboard() {
   const {
@@ -190,31 +191,23 @@ export default function ImportDashboard() {
               <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
                 <div className="flex-1 space-y-1.5">
                   <label className="text-sm font-medium text-gray-700">Data Inicial</label>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-solved focus:border-transparent"
-                  />
+                  <DatePicker value={startDate} onChange={setStartDate} placeholder="DD/MM/AAAA" />
                 </div>
                 <div className="flex-1 space-y-1.5">
                   <label className="text-sm font-medium text-gray-700">Data Final</label>
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-solved focus:border-transparent"
-                  />
+                  <DatePicker value={endDate} onChange={setEndDate} placeholder="DD/MM/AAAA" />
                 </div>
               </div>
               <div className="mt-4 flex items-center gap-2 text-sm text-gray-600 bg-blue-50 border border-blue-100 rounded-md px-3 py-2">
                 <Calendar className="w-4 h-4 text-blue-500 shrink-0" />
                 <span>
-                  <b>Última data de importação:</b>{' '}
+                  <b>Última Importação:</b>{' '}
                   {lastImportDate
                     ? (() => {
                         try {
-                          return format(parseISO(lastImportDate), 'dd/MM/yyyy', { locale: ptBR })
+                          return format(parseISO(lastImportDate), "dd/MM/yyyy 'às' HH:mm", {
+                            locale: ptBR,
+                          })
                         } catch {
                           return lastImportDate
                         }
