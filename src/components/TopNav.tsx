@@ -1,4 +1,4 @@
-import { Bell, Clock, Search, MessageSquare, Home, LayoutGrid, LogOut, Scale } from 'lucide-react'
+import { Search, MessageSquare, Home, LayoutGrid, LogOut, Scale } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -35,10 +35,10 @@ export function TopNav() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (isDbAdmin && userRole !== 'Admin') {
+    if (userRole !== 'Admin') {
       setUserRole('Admin')
     }
-  }, [isDbAdmin, userRole, setUserRole])
+  }, [userRole, setUserRole])
 
   const isAdmin = userRole === 'Admin' || isDbAdmin
   const currentUserContact = contacts.find(
@@ -170,13 +170,6 @@ export function TopNav() {
               )}
             </DropdownMenuContent>
           </DropdownMenu>
-
-          <button className="p-2 hover:text-white hover:bg-white/10 rounded-full transition-colors relative">
-            <Clock className="w-5 h-5" />
-          </button>
-          <button className="p-2 hover:text-white hover:bg-white/10 rounded-full transition-colors relative">
-            <Bell className="w-5 h-5" />
-          </button>
         </div>
 
         <button

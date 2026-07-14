@@ -139,7 +139,7 @@ export const CaseProvider = ({ children }: { children: React.ReactNode }) => {
 
   const [analystName, setAnalystName] = useState('Analista')
   const [clientName, setClientName] = useState('Cliente')
-  const [userRole, setUserRole] = useState('Analista')
+  const [userRole, setUserRole] = useState('Admin')
   const [raNumber, setRaNumber] = useState('RA-00000')
 
   useEffect(() => {

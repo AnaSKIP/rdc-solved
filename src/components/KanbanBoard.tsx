@@ -124,6 +124,8 @@ export function KanbanBoard() {
       if (analystFilter !== matchedAnalyst) {
         setAnalystFilter(matchedAnalyst)
       }
+    } else if (isAdmin && analystFilter !== 'all') {
+      setAnalystFilter('all')
     }
   }, [isAdmin, user, contacts, analysts, analystFilter, setAnalystFilter])
 
