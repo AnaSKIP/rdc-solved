@@ -87,7 +87,7 @@ export function KanbanBoard() {
     userRole,
   } = useCaseStore()
 
-  const { user } = useAuth()
+  const { user, isAdmin: isDbAdmin } = useAuth()
   const { contacts } = useContactStore()
   const { toast } = useToast()
 
@@ -105,7 +105,7 @@ export function KanbanBoard() {
   const contentRef = useRef<HTMLDivElement>(null)
   const [contentWidth, setContentWidth] = useState(0)
 
-  const isAdmin = userRole === 'Admin' || user?.email?.toLowerCase().includes('admin')
+  const isAdmin = userRole === 'Admin' || isDbAdmin || user?.email?.toLowerCase().includes('admin')
 
   const analysts = useMemo(() => {
     const list = new Set((claims || []).map((c) => c?.analyst?.toString() || 'Não Atribuído'))

@@ -1,4 +1,4 @@
-import { Search, MessageSquare, Home, LayoutGrid, LogOut, Scale } from 'lucide-react'
+import { Search, MessageSquare, Home, LayoutGrid, LogOut } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -89,13 +89,6 @@ export function TopNav() {
           className="hidden sm:flex items-center gap-2 text-sm bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors border border-white/10 font-medium shadow-sm"
         >
           <Home className="w-4 h-4" /> Portal de Apps
-        </Link>
-
-        <Link
-          to="/juridico"
-          className="hidden sm:flex items-center gap-2 text-sm bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors border border-white/10 font-medium shadow-sm"
-        >
-          <Scale className="w-4 h-4" /> Jurídico
         </Link>
       </div>
 
