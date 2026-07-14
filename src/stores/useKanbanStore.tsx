@@ -40,6 +40,7 @@ export interface KanbanClaim {
   vistoriaDate?: string | null
   vistoriaLink?: string | null
   judicialProcessNumber?: string | null
+  judicialStatus?: string | null
   agreementNotes?: string | null
   agreementSigned?: boolean
   agreementGenerated?: boolean
@@ -106,6 +107,8 @@ export const KanbanProvider = ({ children }: { children: React.ReactNode }) => {
     const { data, error } = await supabase
       .from('claims')
       .select('*, attachments(id, url, file_name, file_type)')
+      .is('judicial_process_number', null)
+      .neq('stage', 'Judicial')
       .order('date', { ascending: false })
     if (error) {
       console.error(error)
@@ -167,6 +170,7 @@ export const KanbanProvider = ({ children }: { children: React.ReactNode }) => {
             vistoriaDate: d?.vistoria_date?.toString() || null,
             vistoriaLink: d?.vistoria_link?.toString() || null,
             judicialProcessNumber: d?.judicial_process_number?.toString() || null,
+            judicialStatus: d?.judicial_status?.toString() || null,
             agreementNotes: d?.agreement_notes?.toString() || '',
             agreementSigned: d?.agreement_signed || false,
             agreementGenerated: d?.agreement_generated || false,
@@ -243,6 +247,9 @@ export const KanbanProvider = ({ children }: { children: React.ReactNode }) => {
     } else if (newStage === 'Sem acordo') {
       dbUpdates.motivo_finalizacao = 'Causador recusou pagamento'
       dbUpdates.data_finalizacao = new Date().toISOString()
+    } else if (newStage === 'Judicial') {
+      dbUpdates.motivo_finalizacao = 'Encaminhado para via judicial'
+      dbUpdates.data_finalizacao = new Date().toISOString()
     }
 
     await supabase.from('claims').update(dbUpdates).eq('id', claimId)
@@ -265,6 +272,7 @@ export const KanbanProvider = ({ children }: { children: React.ReactNode }) => {
     if (updates.vistoriaLink !== undefined) dbUpdates.vistoria_link = updates.vistoriaLink
     if (updates.judicialProcessNumber !== undefined)
       dbUpdates.judicial_process_number = updates.judicialProcessNumber
+    if (updates.judicialStatus !== undefined) dbUpdates.judicial_status = updates.judicialStatus
     if (updates.placaCausador !== undefined) dbUpdates.placa_causador = updates.placaCausador
     if (updates.dinamicaAcidente !== undefined) dbUpdates.relato_acidente = updates.dinamicaAcidente
     if (updates.agreementNotes !== undefined) dbUpdates.agreement_notes = updates.agreementNotes

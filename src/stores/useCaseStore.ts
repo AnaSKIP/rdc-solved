@@ -18,6 +18,7 @@ export type PipelineStage =
   | 'Aguardando o cliente efetuar o pagamento'
   | 'Concluído'
   | 'Sem acordo'
+  | 'Judicial'
   | 'Repescagem'
 
 export const PIPELINE_STAGES: PipelineStage[] = [
@@ -32,6 +33,7 @@ export const PIPELINE_STAGES: PipelineStage[] = [
   'Aguardando o cliente efetuar o pagamento',
   'Concluído',
   'Sem acordo',
+  'Judicial',
   'Repescagem',
 ]
 
