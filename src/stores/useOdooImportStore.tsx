@@ -34,6 +34,12 @@ interface OdooImportState {
   isChecking: boolean
   isClearing: boolean
   eta: number | null
+  startDate: string
+  endDate: string
+  setStartDate: (date: string) => void
+  setEndDate: (date: string) => void
+  lastImportDate: string | null
+  fetchLastImportDate: () => Promise<void>
   checkTotalFromOdoo: () => Promise<void>
   clearBase: () => Promise<void>
   startImport: (limit?: number) => void
@@ -87,8 +93,32 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
   const [startTime, setStartTime] = useState<number | null>(null)
   const [eta, setEta] = useState<number | null>(null)
   const [isTransferring, setIsTransferring] = useState(false)
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [lastImportDate, setLastImportDate] = useState<string | null>(null)
 
   const batchSize = 100
+
+  const fetchLastImportDate = async () => {
+    try {
+      const { data } = await supabase
+        .from('caixa_entrada_importacao')
+        .select('data_importacao')
+        .order('data_importacao', { ascending: false, nullsFirst: false })
+        .limit(1)
+      if (data && data.length > 0 && data[0].data_importacao) {
+        setLastImportDate(data[0].data_importacao)
+      } else {
+        setLastImportDate(null)
+      }
+    } catch {
+      setLastImportDate(null)
+    }
+  }
+
+  useEffect(() => {
+    fetchLastImportDate()
+  }, [])
 
   const addLog = (message: string, type: LogEntry['type']) => {
     setLogs((prev) => [
@@ -126,7 +156,12 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
 
     try {
       const { data, error } = await supabase.functions.invoke('odoo-sync', {
-        body: { ...credentials, countOnly: true },
+        body: {
+          ...credentials,
+          countOnly: true,
+          start_date: startDate || undefined,
+          end_date: endDate || undefined,
+        },
       })
       if (error) throw error
       if (data?.error) throw new Error(data.error)
@@ -182,6 +217,7 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
       setDuplicatesAvoided(0)
       setAttachedFilesCount(0)
       setStatus('idle')
+      setLastImportDate(null)
     } catch (err: any) {
       addLog(`Erro ao limpar base: ${err.message}`, 'error')
       toast({ title: 'Erro na Limpeza', description: err.message, variant: 'destructive' })
@@ -206,7 +242,12 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
       addLog('Consultando Odoo automaticamente para descobrir total de registros...', 'info')
       try {
         const { data, error } = await supabase.functions.invoke('odoo-sync', {
-          body: { ...credentials, countOnly: true },
+          body: {
+            ...credentials,
+            countOnly: true,
+            start_date: startDate || undefined,
+            end_date: endDate || undefined,
+          },
         })
         if (error) throw error
         if (data?.error) throw new Error(data.error)
@@ -334,6 +375,8 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
               ...credentials,
               offset: processed,
               limit: currentBatchSize,
+              start_date: startDate || undefined,
+              end_date: endDate || undefined,
             },
           })
 
@@ -361,6 +404,13 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
             .select('ra, causer_document')
 
           if (fetchError) throw fetchError
+
+          const { data: maxLoteData } = await supabase
+            .from('caixa_entrada_importacao')
+            .select('lote_importacao')
+            .order('lote_importacao', { ascending: false, nullsFirst: false })
+            .limit(1)
+          const currentLote = (maxLoteData?.[0]?.lote_importacao || 0) + 1
 
           const batchRecords: any[] = []
           let batchDuplicatesAvoided = 0
@@ -445,6 +495,7 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
                 status_atual: stage,
                 data_criacao: date,
                 data_importacao: new Date().toISOString(),
+                lote_importacao: currentLote,
                 causador_nome: causer_name,
                 causador_cpf: cnpj,
                 valor_dano_estimado: getVal(lead.expected_revenue) || 0,
@@ -624,6 +675,7 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
           if (newProcessed >= target || realLeads.length < currentBatchSize) {
             setStatus('complete')
             setProcessed(target > newProcessed ? newProcessed : target)
+            fetchLastImportDate()
             addLog(
               `Extração bruta finalizada com sucesso! Total de leads processados: ${newProcessed}. Clique em 'Transferir Agora' para enviar os dados para a Caixa de Entrada.`,
               'success',
@@ -672,6 +724,12 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
         isChecking,
         isClearing,
         eta,
+        startDate,
+        endDate,
+        setStartDate,
+        setEndDate,
+        lastImportDate,
+        fetchLastImportDate,
         checkTotalFromOdoo,
         clearBase,
         startImport,

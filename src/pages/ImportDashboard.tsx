@@ -23,7 +23,9 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { DownloadCloud } from 'lucide-react'
+import { DownloadCloud, Calendar } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 
 export default function ImportDashboard() {
   const {
@@ -40,6 +42,11 @@ export default function ImportDashboard() {
     isChecking,
     isClearing,
     eta,
+    startDate,
+    endDate,
+    setStartDate,
+    setEndDate,
+    lastImportDate,
     checkTotalFromOdoo,
     clearBase,
     startImport,
@@ -169,6 +176,54 @@ export default function ImportDashboard() {
               </AlertDescription>
             </Alert>
           )}
+
+          <Card className="shadow-sm">
+            <CardHeader className="border-b bg-white pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-solved" /> Filtro de Período
+              </CardTitle>
+              <CardDescription>
+                Selecione o intervalo de datas para sincronizar apenas registros novos do Odoo.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
+                <div className="flex-1 space-y-1.5">
+                  <label className="text-sm font-medium text-gray-700">Data Inicial</label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-solved focus:border-transparent"
+                  />
+                </div>
+                <div className="flex-1 space-y-1.5">
+                  <label className="text-sm font-medium text-gray-700">Data Final</label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-solved focus:border-transparent"
+                  />
+                </div>
+              </div>
+              <div className="mt-4 flex items-center gap-2 text-sm text-gray-600 bg-blue-50 border border-blue-100 rounded-md px-3 py-2">
+                <Calendar className="w-4 h-4 text-blue-500 shrink-0" />
+                <span>
+                  <b>Última data de importação:</b>{' '}
+                  {lastImportDate
+                    ? (() => {
+                        try {
+                          return format(parseISO(lastImportDate), 'dd/MM/yyyy', { locale: ptBR })
+                        } catch {
+                          return lastImportDate
+                        }
+                      })()
+                    : 'Nenhuma importação realizada'}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <Card className="lg:col-span-2 shadow-sm">

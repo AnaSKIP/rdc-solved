@@ -23,6 +23,8 @@ Deno.serve(async (req: Request) => {
       countOnly = false,
       attachmentId,
       claimId,
+      start_date,
+      end_date,
     } = reqBody
 
     if (!url || !db || !username || !apiKey) {
@@ -160,7 +162,19 @@ Deno.serve(async (req: Request) => {
     if (stageData.error) throw new Error(stageData.error.data.message)
     const stageIds = stageData.result || []
 
-    const domain = stageIds.length > 0 ? [['stage_id', 'in', stageIds]] : [['id', '=', -1]]
+    const domain: any[] = []
+    if (stageIds.length > 0) {
+      domain.push(['stage_id', 'in', stageIds])
+    }
+    if (start_date) {
+      domain.push(['create_date', '>=', start_date])
+    }
+    if (end_date) {
+      domain.push(['create_date', '<=', end_date + ' 23:59:59'])
+    }
+    if (domain.length === 0) {
+      domain.push(['id', '=', -1])
+    }
 
     if (countOnly) {
       const countRes = await fetch(`${cleanUrl}/jsonrpc`, {
