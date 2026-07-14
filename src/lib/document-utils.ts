@@ -15,3 +15,49 @@ export function getDocFileType(url: string | null | undefined): 'image' | 'pdf' 
   if (ext && ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(ext)) return 'image'
   return 'pdf'
 }
+
+export interface ParsedDocument {
+  url: string
+  name: string
+  type: string
+}
+
+export function parseDocumentosAnexados(raw: unknown): ParsedDocument[] {
+  if (!raw) return []
+  let docs: unknown[] = []
+  if (Array.isArray(raw)) {
+    docs = raw
+  } else if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw)
+      docs = Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  } else {
+    return []
+  }
+
+  return docs
+    .map((doc: any) => {
+      if (typeof doc === 'string') {
+        const name = doc.split('/').pop() || 'Documento'
+        return { url: doc, name, type: name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'file' }
+      }
+      const url = doc?.url || doc?.url_arquivo || doc?.link || doc?.fileUrl || ''
+      const name =
+        doc?.nome ||
+        doc?.nome_arquivo ||
+        doc?.file_name ||
+        doc?.name ||
+        (url ? url.split('/').pop() : 'Documento')
+      const type =
+        doc?.tipo ||
+        doc?.tipo_arquivo ||
+        doc?.file_type ||
+        doc?.type ||
+        (String(name).toLowerCase().endsWith('.pdf') ? 'pdf' : 'file')
+      return { url, name: name || 'Documento', type: type || 'file' }
+    })
+    .filter((d) => d.url && isValidUrl(d.url))
+}

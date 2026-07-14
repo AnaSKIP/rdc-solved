@@ -91,6 +91,25 @@ Deno.serve(async (req: Request) => {
       /(?:Endereço|Logradouro|Local de Residência|Endereço do Causador|Endereço do Terceiro)(?:[\s do causador]*|[\s do terceiro]*)[\s:-]+([^\n\r]{5,100})/i,
     ])
 
+    const dataAcidente = extractField([
+      /(?:Data(?: do)?(?: Acidente| Sinistro| Evento| Ocorrência))[\s:-]+(\d{2}\/\d{2}\/\d{4}|\d{4}-\d{2}-\d{2})/i,
+      /(?:Data)[\s:-]+(\d{2}\/\d{2}\/\d{4})/i,
+    ])
+
+    const horaAcidente = extractField([
+      /(?:Hora(?: do)?(?: Acidente| Sinistro| Evento| Ocorrência))[\s:-]+(\d{2}:\d{2}(?::\d{2})?)/i,
+      /(?:Hora)[\s:-]+(\d{2}:\d{2}(?::\d{2})?)/i,
+    ])
+
+    const localAcidente = extractField([
+      /(?:Local(?: do)?(?: Acidente| Sinistro| Evento| Ocorrência)|Endereço do Acidente|Local do Sinistro)[\s:-]+([^\n\r]{5,150})/i,
+    ])
+
+    const anoCausador = extractField([
+      /(?:Ano(?: do)?(?: Veículo Causador| Causador| Terceiro)|Ano Fabricação)[\s:-]+(\d{4})/i,
+      /(?:Ano)[\s:-]+(\d{4})/i,
+    ])
+
     const dinamicaMatch = text.match(
       /(?:Dinâmica do Acidente|Relato do Acidente|Histórico|Descrição|Dinâmica|Resumo do Evento|Descrição do Acidente)[\s:-]+([\s\S]{10,2000}?)(?=\n(?:[A-Z][a-zÀ-ÿ]+[\s:-])|\n\n\n|$)/i,
     )
@@ -113,6 +132,10 @@ Deno.serve(async (req: Request) => {
       proprietarioNome,
       proprietarioTelefone,
       dinamica,
+      dataAcidente,
+      horaAcidente,
+      localAcidente,
+      anoCausador,
     }
 
     console.log('Dados extraídos (causador diferenciado do cliente):', extracted)

@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useRef, type ChangeEvent } from 'react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { fetchCEP, fetchCNPJ, simulateOCR } from '@/services/external'
+import { fetchCEP, fetchCNPJ } from '@/services/external'
+import { uploadAndProcessPdf } from '@/services/ocr'
 import { sendWhatsAppMessage } from '@/services/whatsapp'
 import { Loader2, Beaker, Play, Server, FileText, MessageSquare } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
@@ -10,6 +11,7 @@ export default function Sandbox() {
   const [result, setResult] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const runTest = async (testName: string, action: () => Promise<any>) => {
     setLoading(true)
@@ -28,6 +30,13 @@ export default function Sandbox() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleOcrFileSelect = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    await runTest('OCR Extração de BO', () => uploadAndProcessPdf(file))
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   return (
@@ -69,13 +78,20 @@ export default function Sandbox() {
                 >
                   <Play className="w-4 h-4 text-purple-500" /> Consultar CNPJ (BrasilAPI)
                 </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="application/pdf"
+                  className="hidden"
+                  onChange={handleOcrFileSelect}
+                />
                 <Button
-                  onClick={() => runTest('OCR Extração de BO', () => simulateOCR('dummy_bo.pdf'))}
+                  onClick={() => fileInputRef.current?.click()}
                   className="w-full justify-start gap-3 bg-white text-gray-700 border hover:bg-gray-50 shadow-sm h-12"
                   variant="outline"
                   disabled={loading}
                 >
-                  <FileText className="w-4 h-4 text-orange-500" /> Simular Extração OCR (IA)
+                  <FileText className="w-4 h-4 text-orange-500" /> Extrair Dados via OCR (IA)
                 </Button>
                 <Button
                   onClick={() =>
