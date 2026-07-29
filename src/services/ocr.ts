@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
+import { parseDocumentosAnexados } from '@/lib/document-utils'
 
 export interface OcrExtractedData {
   cliente: string | null
@@ -44,4 +45,76 @@ export const uploadAndProcessPdf = async (file: File): Promise<OcrExtractedData>
   const { data: publicUrlData } = supabase.storage.from('claim_attachments').getPublicUrl(filePath)
 
   return processPdfOcr(publicUrlData.publicUrl)
+}
+
+export const processOcrForBatchDinamica = async (
+  table: 'caixa_entrada_importacao' | 'caixa_entrada',
+  ras: string[],
+): Promise<{ processed: number; skipped: number; failed: number }> => {
+  if (ras.length === 0) return { processed: 0, skipped: 0, failed: 0 }
+
+  const { data: records } = await supabase
+    .from(table)
+    .select('id_ra, dinamica_acidente, documentos_anexados')
+    .in('id_ra', ras)
+
+  if (!records || records.length === 0) return { processed: 0, skipped: 0, failed: 0 }
+
+  let processed = 0
+  let skipped = 0
+  let failed = 0
+
+  for (const record of records) {
+    if (record.dinamica_acidente) {
+      skipped++
+      continue
+    }
+
+    const docs = parseDocumentosAnexados(record.documentos_anexados)
+    const pdfDocs = docs.filter((d) => d.type === 'pdf' || d.name.toLowerCase().endsWith('.pdf'))
+
+    if (pdfDocs.length === 0) {
+      skipped++
+      continue
+    }
+
+    let extracted = false
+    for (const pdfDoc of pdfDocs) {
+      try {
+        const result = await processPdfOcr(pdfDoc.url)
+        if (result.dinamica) {
+          await supabase
+            .from(table)
+            .update({ dinamica_acidente: result.dinamica })
+            .eq('id_ra', record.id_ra)
+          processed++
+          extracted = true
+          break
+        }
+      } catch {
+        // Continue to next PDF
+      }
+    }
+
+    if (!extracted) failed++
+  }
+
+  return { processed, skipped, failed }
+}
+
+export const processOcrForNullDinamica = async (
+  table: 'caixa_entrada_importacao' | 'caixa_entrada',
+  limit = 100,
+): Promise<number> => {
+  const { data: records } = await supabase
+    .from(table)
+    .select('id_ra')
+    .is('dinamica_acidente', null)
+    .limit(limit)
+
+  if (!records || records.length === 0) return 0
+
+  const ras = records.map((r) => r.id_ra)
+  const result = await processOcrForBatchDinamica(table, ras)
+  return result.processed
 }

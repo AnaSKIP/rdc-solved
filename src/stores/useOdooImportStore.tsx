@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
+import { processOcrForBatchDinamica, processOcrForNullDinamica } from '@/services/ocr'
 
 export type ImportStatus = 'idle' | 'running' | 'paused' | 'error' | 'complete'
 
@@ -427,6 +428,16 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
       if (data?.error) throw new Error(data.error)
 
       addLog(data.mensagem, 'success')
+
+      addLog('Verificando registros transferidos para extração de dinâmica via OCR...', 'info')
+      const ocrProcessedCount = await processOcrForNullDinamica('caixa_entrada', 100)
+      if (ocrProcessedCount > 0) {
+        addLog(
+          `OCR concluído: ${ocrProcessedCount} registros tiveram dinâmica extraída dos PDFs.`,
+          'success',
+        )
+      }
+
       toast({
         title: 'Transferência Concluída',
         description: data.mensagem,
@@ -602,7 +613,7 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
                 valor_dano_estimado: getVal(lead.expected_revenue) || 0,
                 analista_atribuido:
                   lead.user_id && Array.isArray(lead.user_id) ? lead.user_id[1] : null,
-                dinamica_acidente: cleanResidualData(getVal(lead.description)),
+                dinamica_acidente: null,
                 causador_telefone: cleanResidualData(getVal(lead.phone) || getVal(lead.mobile)),
                 placa_onibus: cleanResidualData(getVal(lead.x_placa_onibus)),
                 prefixo_onibus: cleanResidualData(getVal(lead.x_prefixo_onibus)),
@@ -755,6 +766,24 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
 
             batchFiles = results.reduce((a, b) => a + b, 0)
             setAttachedFilesCount((prev) => prev + batchFiles)
+          }
+
+          if (mounted && status === 'running' && batchRecords.length > 0) {
+            addLog(
+              `[Lote ${currentBatch}] Processando OCR dos PDFs para extrair dinâmica do acidente...`,
+              'info',
+            )
+            const rasInBatch = batchRecords.map((r) => r.id_ra)
+            const ocrResult = await processOcrForBatchDinamica(
+              'caixa_entrada_importacao',
+              rasInBatch,
+            )
+            if (ocrResult.processed > 0) {
+              addLog(
+                `[Lote ${currentBatch}] OCR concluído: ${ocrResult.processed} dinâmicas extraídas, ${ocrResult.skipped} ignoradas, ${ocrResult.failed} falhas.`,
+                'success',
+              )
+            }
           }
 
           addLog(
