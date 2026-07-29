@@ -17,7 +17,12 @@ import { useToast } from '@/hooks/use-toast'
 import { PasswordConfirmModal } from '@/components/PasswordConfirmModal'
 import { LeadDocumentsDialog } from '@/components/LeadDocumentsDialog'
 import { parseDocumentosAnexados } from '@/lib/document-utils'
-import { extractOcrForLead, processBatchWithOcr, BatchProgress } from '@/services/intake'
+import {
+  extractOcrForLead,
+  processBatchWithOcr,
+  BatchProgress,
+  PROCESSING_STEPS,
+} from '@/services/intake'
 
 export const PIPELINE_STAGES = ['Caixa de Entrada', 'Enriquecimento', 'Análise', 'Concluído']
 
@@ -151,6 +156,26 @@ export default function IntakeDashboard() {
             </span>
           </div>
           <Progress value={(batchProgress.processed / batchProgress.total) * 100} className="h-2" />
+          <div className="flex items-center gap-1.5 flex-wrap mt-1">
+            {PROCESSING_STEPS.map((step) => {
+              const isCurrent = batchProgress.step === step.id
+              const isDone = batchProgress.step !== undefined && batchProgress.step > step.id
+              return (
+                <div
+                  key={step.id}
+                  className={`flex items-center gap-1 text-[10px] font-medium ${isCurrent ? 'text-indigo-900' : isDone ? 'text-green-600' : 'text-indigo-300'}`}
+                  title={step.description}
+                >
+                  <span
+                    className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] ${isCurrent ? 'bg-indigo-600 text-white' : isDone ? 'bg-green-500 text-white' : 'bg-indigo-100 text-indigo-400'}`}
+                  >
+                    {isDone ? '✓' : step.id}
+                  </span>
+                  {step.name}
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 

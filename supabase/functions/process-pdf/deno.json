@@ -1,5 +1,5 @@
 {
   "imports": {
-    "npm:pdf-parse": "npm:pdf-parse@1.1.1"
+    "tesseract.js": "npm:tesseract.js@5.1.1"
   }
 }

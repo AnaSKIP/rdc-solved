@@ -41,6 +41,7 @@ import { NegotiationPanel } from './NegotiationPanel'
 import { AgreementPanel } from './AgreementPanel'
 import { CaseTags } from './CaseTags'
 import { FinancialPanel } from './FinancialPanel'
+import { CaseAttachments } from './CaseAttachments'
 import useCaseStore from '@/stores/useCaseStore'
 import useKanbanStore from '@/stores/useKanbanStore'
 import useContactStore from '@/stores/useContactStore'
@@ -893,6 +894,8 @@ export function CaseForm() {
                 />
               </div>
             </div>
+
+            <CaseAttachments />
           </div>
 
           <div>

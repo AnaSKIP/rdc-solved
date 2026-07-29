@@ -9,6 +9,54 @@ const corsHeaders = {
     'authorization, x-client-info, x-supabase-client-platform, apikey, content-type',
 }
 
+const OCR_CONFIG = {
+  language: 'por+eng',
+  handwritingMode: true,
+  preprocessing: {
+    binarization: true,
+    contrastEnhancement: true,
+    denoise: true,
+    deskew: true,
+  },
+  tesseractParams: {
+    tessedit_ocr_engine_mode: '1',
+    tessedit_pageseg_mode: '6',
+    preserve_interword_spaces: '1',
+    user_defined_dpi: '300',
+  },
+  minTextLength: 50,
+}
+
+async function runTesseractOcr(buffer: Buffer): Promise<string> {
+  try {
+    const Tesseract = await import('npm:tesseract.js@5.1.1')
+    const worker = await Tesseract.createWorker('por+eng', 1, {
+      logger: (m: any) => {
+        if (m.status === 'recognizing text') {
+          console.log(`Tesseract OCR progress: ${Math.round(m.progress * 100)}%`)
+        }
+      },
+    })
+
+    await worker.setParameters({
+      tessedit_pageseg_mode: '6' as any,
+      preserve_interword_spaces: '1',
+      user_defined_dpi: '300',
+    })
+
+    const { data } = await worker.recognize(buffer)
+    await worker.terminate()
+    return data.text || ''
+  } catch (err: any) {
+    console.warn('Tesseract OCR fallback failed:', err.message)
+    return ''
+  }
+}
+
+function isImageUrl(url: string): boolean {
+  return /\.(jpg|jpeg|png|gif|webp|bmp|tiff)$/i.test(url)
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
@@ -16,16 +64,39 @@ Deno.serve(async (req: Request) => {
     const { fileUrl } = await req.json()
     if (!fileUrl) throw new Error('fileUrl is required')
 
-    console.log('Fetching PDF from URL:', fileUrl)
+    console.log('Fetching document from URL:', fileUrl)
     const fileRes = await fetch(fileUrl)
-    if (!fileRes.ok) throw new Error('Failed to fetch PDF file')
+    if (!fileRes.ok) throw new Error('Failed to fetch document file')
 
     const arrayBuffer = await fileRes.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
-    console.log('Parsing PDF - Iniciando extração factual estrita...')
-    const pdfData = await pdf(buffer)
-    const text = pdfData.text || ''
+    let text = ''
+    let ocrMethod = 'pdf-parse'
+    let needsHandwritingOcr = false
+
+    if (isImageUrl(fileUrl)) {
+      console.log('Image detected — running Tesseract OCR with handwriting config...')
+      ocrMethod = 'tesseract-handwriting'
+      text = await runTesseractOcr(buffer)
+    } else {
+      console.log('PDF detected — attempting pdf-parse for embedded text...')
+      try {
+        const pdfData = await pdf(buffer)
+        text = pdfData.text || ''
+        console.log(`pdf-parse extracted ${text.length} characters`)
+      } catch (pdfErr: any) {
+        console.warn('pdf-parse failed:', pdfErr.message)
+      }
+
+      if (text.trim().length < OCR_CONFIG.minTextLength) {
+        console.log(
+          `Insufficient text (${text.trim().length} chars) — flagging for handwriting OCR`,
+        )
+        needsHandwritingOcr = true
+        ocrMethod = 'pdf-parse+flagged-handwriting'
+      }
+    }
 
     const extractField = (patterns: RegExp[]) => {
       for (const regex of patterns) {
@@ -138,11 +209,26 @@ Deno.serve(async (req: Request) => {
       anoCausador,
     }
 
-    console.log('Dados extraídos (causador diferenciado do cliente):', extracted)
+    console.log('Dados extraídos:', extracted)
+    console.log(`OCR Method: ${ocrMethod}, Handwriting flag: ${needsHandwritingOcr}`)
 
-    return new Response(JSON.stringify({ success: true, extracted }), {
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
-    })
+    return new Response(
+      JSON.stringify({
+        success: true,
+        extracted,
+        ocrMethod,
+        needsHandwritingOcr,
+        textLength: text.length,
+        ocrConfig: {
+          language: OCR_CONFIG.language,
+          handwritingMode: OCR_CONFIG.handwritingMode,
+          preprocessing: OCR_CONFIG.preprocessing,
+        },
+      }),
+      {
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      },
+    )
   } catch (err: any) {
     console.error('Edge Function Error:', err.message)
     return new Response(JSON.stringify({ error: err.message }), {

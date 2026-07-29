@@ -9,11 +9,6 @@ import {
   MessageSquare,
   PenTool,
   CheckSquare,
-  FolderOpen,
-  FileText,
-  Image as ImageIcon,
-  File,
-  Download,
   Mail,
   Bot,
   Camera,
@@ -24,7 +19,6 @@ import useKanbanStore from '@/stores/useKanbanStore'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
-import { FilePreviewModal } from './FilePreviewModal'
 
 export function CaseLog() {
   const [activeTab, setActiveTab] = useState('notas')
@@ -33,12 +27,6 @@ export function CaseLog() {
   const { toast } = useToast()
 
   const [activityNote, setActivityNote] = useState('')
-
-  const [previewFile, setPreviewFile] = useState<{
-    url: string
-    name: string
-    type: string
-  } | null>(null)
 
   const safeAnalystName = analystName?.toString() || 'U'
   const fallbackInitial = safeAnalystName.length > 0 ? safeAnalystName.charAt(0).toUpperCase() : 'U'
@@ -55,13 +43,6 @@ export function CaseLog() {
       title: 'Atividade registrada',
       className: 'bg-green-50 border-green-200 text-green-900',
     })
-  }
-
-  const getFileIcon = (fileType: string) => {
-    if (fileType === 'pdf') return <FileText className="w-5 h-5 text-red-500" />
-    if (fileType === 'image' || fileType.includes('image'))
-      return <ImageIcon className="w-5 h-5 text-blue-500" />
-    return <File className="w-5 h-5 text-gray-500" />
   }
 
   const getActivityIcon = (type: ActivityType) => {
@@ -151,19 +132,11 @@ export function CaseLog() {
               <Bot className="w-3.5 h-3.5" />
               Campanha IA
             </TabsTrigger>
-            <TabsTrigger
-              value="documentos"
-              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-blue-600 rounded-none px-1 pb-2 pt-1 text-[11px] sm:text-xs text-gray-500 data-[state=active]:text-blue-600 font-semibold uppercase tracking-wider flex items-center gap-1.5 whitespace-nowrap shrink-0"
-            >
-              <FolderOpen className="w-3.5 h-3.5" />
-              Docs
-            </TabsTrigger>
           </TabsList>
         </div>
 
         <div className="flex-1 overflow-y-auto bg-gray-50/30 scrollbar-thin">
           <TabsContent value="notas" className="m-0 space-y-6 animate-fade-in p-4">
-            {/* Dynamic Activities Timeline */}
             {claimActivities.length === 0 ? (
               <div className="flex flex-col items-center justify-center p-8 text-gray-400 border border-dashed border-gray-200 rounded-md bg-white">
                 <Clock className="w-8 h-8 mb-2 opacity-20" />
@@ -275,72 +248,8 @@ export function CaseLog() {
               )}
             </div>
           </TabsContent>
-
-          <TabsContent
-            value="documentos"
-            className="m-0 h-full flex flex-col gap-4 animate-fade-in outline-none p-4"
-          >
-            <div className="flex-1 overflow-y-auto scrollbar-thin pr-1">
-              {selectedClaim?.attachments && selectedClaim.attachments.length > 0 ? (
-                <div className="grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3">
-                  {selectedClaim.attachments.map((file) => (
-                    <div
-                      key={file.id}
-                      onClick={() =>
-                        setPreviewFile({
-                          url: file.url,
-                          name: file.file_name,
-                          type: file.file_type,
-                        })
-                      }
-                      className="border border-gray-200 rounded-md p-3 flex flex-col gap-2 bg-white hover:border-blue-300 hover:shadow-md cursor-pointer transition-all group relative overflow-hidden"
-                      title={file.file_name}
-                    >
-                      <div className="flex justify-between items-start">
-                        {getFileIcon(file.file_type)}
-                        <a
-                          href={file.url}
-                          download={file.file_name}
-                          className="text-gray-400 hover:text-blue-600 transition-colors p-1"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Download className="w-4 h-4" />
-                        </a>
-                      </div>
-                      <div className="mt-1">
-                        <p className="text-[11px] sm:text-xs font-semibold text-gray-800 line-clamp-2 leading-tight">
-                          {file.file_name}
-                        </p>
-                        <p className="text-[9px] text-gray-500 mt-1 uppercase font-medium">
-                          {file.file_type === 'file' ? 'Documento' : file.file_type}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center p-8 bg-white border border-dashed border-gray-300 rounded-md h-full flex flex-col items-center justify-center">
-                  <div className="flex justify-center mb-3">
-                    <FolderOpen className="w-10 h-10 text-gray-300" />
-                  </div>
-                  <p className="text-sm text-gray-500 font-medium">Nenhum documento anexado.</p>
-                  <p className="text-xs text-gray-400 mt-1 max-w-[200px] text-center mx-auto">
-                    Os arquivos recebidos pelo cliente aparecerão aqui automaticamente.
-                  </p>
-                </div>
-              )}
-            </div>
-          </TabsContent>
         </div>
       </Tabs>
-
-      <FilePreviewModal
-        isOpen={!!previewFile}
-        onClose={() => setPreviewFile(null)}
-        fileUrl={previewFile?.url || null}
-        fileName={previewFile?.name || ''}
-        fileType={previewFile?.type || ''}
-      />
     </div>
   )
 }
