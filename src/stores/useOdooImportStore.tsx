@@ -460,9 +460,16 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
               ).trim()
 
               const causer_name =
-                getVal(lead.partner_name) || getVal(lead.contact_name) || 'Desconhecido'
+                getVal(lead.x_nome_causador) ||
+                getVal(lead.partner_name) ||
+                getVal(lead.contact_name) ||
+                'Desconhecido'
               const rawCnpj =
-                getVal(lead.x_cnpj) || getVal(lead.vat) || getVal(lead.x_cpf_cnpj) || null
+                getVal(lead.x_cpf_cnpj_causador) ||
+                getVal(lead.x_cnpj) ||
+                getVal(lead.vat) ||
+                getVal(lead.x_cpf_cnpj) ||
+                null
 
               const fullText = `${rawCnpj || ''} ${getVal(lead.description) || ''} ${causer_name}`
               const cnpjMatch = fullText.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{14}/)
@@ -545,6 +552,7 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
                 prefixo_onibus: cleanResidualData(getVal(lead.x_prefixo_onibus)),
                 placa_causador: cleanResidualData(getVal(lead.x_placa_causador)),
                 modelo_causador: cleanResidualData(getVal(lead.x_tipo_veiculo_causador)),
+                data_acidente: getVal(lead.x_data_acidente) || null,
                 status_validacao: 'VÁLIDO',
                 status_transferencia: 'PENDENTE',
                 cliente_nome:
