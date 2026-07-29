@@ -108,7 +108,6 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
   const [stages, setStages] = useState<OdooStage[]>([])
   const [selectedStageIds, setSelectedStageIds] = useState<number[]>([])
   const [isLoadingStages, setIsLoadingStages] = useState(false)
-  const [selectedStageIds, setSelectedStageIds] = useState<number[]>([])
 
   const batchSize = 100
 
@@ -326,10 +325,6 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
     setStartTime(Date.now())
     setEta(null)
 
-    const stageLabel =
-      selectedStageIds.length > 0
-        ? `${selectedStageIds.length} estágio(s) selecionado(s)`
-        : 'Sem Acordo e Repescagem'
     const stageLabel =
       selectedStageIds.length > 0
         ? `${selectedStageIds.length} estágio(s) selecionado(s)`
