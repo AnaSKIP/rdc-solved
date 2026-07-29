@@ -82,6 +82,8 @@ export const step2Ocr = async (
     const extracted = await processPdfOcr(pdfDoc.url)
 
     const update: Record<string, unknown> = { texto_extraido_ocr: JSON.stringify(extracted) }
+    if (extracted.placaOnibus) update.placa_onibus = extracted.placaOnibus
+    if (extracted.prefixo) update.prefixo_onibus = extracted.prefixo
     if (extracted.causerName) update.causador_nome = extracted.causerName
     if (extracted.causerDocument) update.causador_cpf = extracted.causerDocument
     if (extracted.placaCausador) update.placa_causador = extracted.placaCausador

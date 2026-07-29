@@ -9,22 +9,47 @@ const corsHeaders = {
     'authorization, x-client-info, x-supabase-client-platform, apikey, content-type',
 }
 
-const OCR_CONFIG = {
-  language: 'por+eng',
-  handwritingMode: true,
-  preprocessing: {
-    binarization: true,
-    contrastEnhancement: true,
-    denoise: true,
-    deskew: true,
-  },
-  tesseractParams: {
-    tessedit_ocr_engine_mode: '1',
-    tessedit_pageseg_mode: '6',
-    preserve_interword_spaces: '1',
-    user_defined_dpi: '300',
-  },
-  minTextLength: 50,
+const PLATE_REGEX = /[A-Z]{3}-?[0-9][A-Z0-9][0-9]{2}/i
+
+function isPlateLike(text: string): boolean {
+  return PLATE_REGEX.test(text)
+}
+
+function cleanPlaca(placa: string | null): string | null {
+  if (!placa) return null
+  const matched = placa.match(PLATE_REGEX)
+  return (matched ? matched[0] : placa).replace(/-/g, '').toUpperCase()
+}
+
+function extractField(text: string, patterns: RegExp[]): string | null {
+  for (const regex of patterns) {
+    const match = text.match(regex)
+    if (match && match[1]) {
+      return match[1].trim().replace(/\s+/g, ' ')
+    }
+  }
+  return null
+}
+
+function extractDateWithPriority(text: string): string | null {
+  const labels = [
+    'Data do Acidente',
+    'Data do Sinistro',
+    'Data do Evento',
+    'Data da Ocorrência',
+    'Data',
+  ]
+  for (const label of labels) {
+    const result = extractField(text, [
+      new RegExp(`(?:${label})[\\s:-]+(\\d{2}\\/\\d{2}\\/\\d{4}|\\d{4}-\\d{2}-\\d{2})`, 'i'),
+    ])
+    if (result) return result
+  }
+  return null
+}
+
+function isImageUrl(url: string): boolean {
+  return /\.(jpg|jpeg|png|gif|webp|bmp|tiff)$/i.test(url)
 }
 
 async function runTesseractOcr(buffer: Buffer): Promise<string> {
@@ -37,13 +62,11 @@ async function runTesseractOcr(buffer: Buffer): Promise<string> {
         }
       },
     })
-
     await worker.setParameters({
       tessedit_pageseg_mode: '6' as any,
       preserve_interword_spaces: '1',
       user_defined_dpi: '300',
     })
-
     const { data } = await worker.recognize(buffer)
     await worker.terminate()
     return data.text || ''
@@ -51,10 +74,6 @@ async function runTesseractOcr(buffer: Buffer): Promise<string> {
     console.warn('Tesseract OCR fallback failed:', err.message)
     return ''
   }
-}
-
-function isImageUrl(url: string): boolean {
-  return /\.(jpg|jpeg|png|gif|webp|bmp|tiff)$/i.test(url)
 }
 
 Deno.serve(async (req: Request) => {
@@ -76,7 +95,7 @@ Deno.serve(async (req: Request) => {
     let needsHandwritingOcr = false
 
     if (isImageUrl(fileUrl)) {
-      console.log('Image detected — running Tesseract OCR with handwriting config...')
+      console.log('Image detected — running Tesseract OCR...')
       ocrMethod = 'tesseract-handwriting'
       text = await runTesseractOcr(buffer)
     } else {
@@ -88,8 +107,7 @@ Deno.serve(async (req: Request) => {
       } catch (pdfErr: any) {
         console.warn('pdf-parse failed:', pdfErr.message)
       }
-
-      if (text.trim().length < OCR_CONFIG.minTextLength) {
+      if (text.trim().length < 50) {
         console.log(
           `Insufficient text (${text.trim().length} chars) — flagging for handwriting OCR`,
         )
@@ -98,85 +116,98 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    const extractField = (patterns: RegExp[]) => {
-      for (const regex of patterns) {
-        const match = text.match(regex)
-        if (match && match[1]) {
-          return match[1].trim().replace(/\s+/g, ' ')
-        }
-      }
-      return null
-    }
-
-    const cleanPlaca = (placa: string | null) => (placa ? placa.replace(/-/g, '') : null)
-
-    const cliente = extractField([
+    const cliente = extractField(text, [
       /(?:Empresa|Cliente|Segurado|Viação|Transportadora|Razão Social)[\s:-]+([^\n\r]{3,50})/i,
     ])
 
-    const placaOnibus = extractField([
-      /(?:Placa do Ônibus|Placa do Veículo Cliente|Placa Cliente|Placa Segurado|Placa do Veículo Avariado)[\s:-]+([A-Z0-9-]{7,8})/i,
-      /(?:Veículo Cliente|Veículo Segurado|Ônibus).*?([A-Z]{3}-?[0-9][A-Z0-9][0-9]{2})/i,
+    const placaOnibusRaw = extractField(text, [
+      /(?:Placa do Ônibus|Placa do Onibus|Placa do Veículo Cliente|Placa Cliente|Placa Segurado|Placa do Veículo Avariado|Placa do Veículo)[\s:-]+([A-Z]{3}-?[0-9][A-Z0-9][0-9]{2})/i,
+      /(?:Veículo Cliente|Veículo Segurado|Ônibus)[\s:-]+([A-Z]{3}-?[0-9][A-Z0-9][0-9]{2})/i,
+      /(?:Placa)[\s:-]+([A-Z]{3}-?[0-9][A-Z0-9][0-9]{2})/i,
+    ])
+    const placaOnibus = cleanPlaca(placaOnibusRaw)
+
+    const prefixo = extractField(text, [
+      /(?:Prefixo|Nº do Ônibus|Carro|Frota|Nº Frota|Pref)[\s:-]+([A-Z0-9-]{3,10})/i,
     ])
 
-    const prefixo = extractField([
-      /(?:Prefixo|Nº do Ônibus|Carro|Frota|Nº Frota)[\s:-]+([A-Z0-9-]{3,10})/i,
+    let causerName = extractField(text, [
+      /(?:Nome do Causador|Nome do Terceiro|Motorista Causador|Nome Terceiro|Condutor Terceiro|Condutor do Veículo Causador|Proprietário do Veículo Causador|Proprietário|Causador)[\s:-]+([^\n\r]{3,50})/i,
+      /(?<!Veículo\s)(?<!Veiculo\s)(?:Terceiro)[\s:-]+([^\n\r]{3,50})/i,
+    ])
+    if (causerName && isPlateLike(causerName)) {
+      causerName = null
+    }
+
+    let placaCausadorRaw = extractField(text, [
+      /(?:Placa do Causador|Placa do Terceiro|Placa Terceiro|Placa do Veículo Causador|Placa do Veículo Terceiro|Veículo Causador Placa)[\s:-]+([A-Z]{3}-?[0-9][A-Z0-9][0-9]{2})/i,
+      /(?:Veículo Terceiro|Veículo Causador|Veículo do Terceiro|Veículo do Causador)[\s:-]+([A-Z]{3}-?[0-9][A-Z0-9][0-9]{2})/i,
     ])
 
-    const causerName = extractField([
-      /(?:Nome do Causador|Causador|Terceiro|Motorista Causador|Nome Terceiro|Condutor Terceiro|Condutor do Veículo Causador|Proprietário do Veículo Causador)[\s:-]+([^\n\r]{3,50})/i,
+    const veiculoGenerico = extractField(text, [
+      /(?:Veículo)(?!\s+(?:Terceiro|Causador|do Terceiro|do Causador|Cliente|Segurado))[\s:-]+([^\n\r]{3,50})/i,
     ])
 
-    const placaCausador = extractField([
-      /(?:Placa do Causador|Placa Terceiro|Placa do Veículo Causador|Placa do Veículo Terceiro|Veículo Causador Placa)[\s:-]+([A-Z0-9-]{7,8})/i,
-      /Veículo Terceiro.*?([A-Z]{3}-?[0-9][A-Z0-9][0-9]{2})/i,
-      /Veículo Causador.*?([A-Z]{3}-?[0-9][A-Z0-9][0-9]{2})/i,
+    if (!placaCausadorRaw && veiculoGenerico && isPlateLike(veiculoGenerico)) {
+      placaCausadorRaw = veiculoGenerico.match(PLATE_REGEX)?.[0] || null
+    }
+
+    const placaCausador = cleanPlaca(placaCausadorRaw)
+
+    let marcaModelo = extractField(text, [
+      /(?:Marca\/Modelo|Modelo Terceiro|Modelo do Veículo Causador|Marca e Modelo do Terceiro|Modelo do Terceiro)[\s:-]+([^\n\r]{3,50})/i,
     ])
 
-    const marcaModelo = extractField([
-      /(?:Marca\/Modelo|Veículo Causador|Veículo Terceiro|Modelo Terceiro|Modelo do Veículo Causador|Marca e Modelo do Terceiro)[\s:-]+([^\n\r]{3,50})/i,
-    ])
+    if (!marcaModelo) {
+      const veiculoTerceiroRaw = extractField(text, [
+        /(?:Veículo Terceiro|Veículo Causador|Veículo do Terceiro|Veículo do Causador)[\s:-]+([^\n\r]{3,50})/i,
+      ])
+      if (veiculoTerceiroRaw && !isPlateLike(veiculoTerceiroRaw)) {
+        marcaModelo = veiculoTerceiroRaw
+      }
+    }
 
-    const causerDocument = extractField([
+    if (!marcaModelo && veiculoGenerico && !isPlateLike(veiculoGenerico)) {
+      marcaModelo = veiculoGenerico
+    }
+
+    const causerDocument = extractField(text, [
       /(?:CPF|CNPJ|Documento)(?:[\s do causador]*|[\s do terceiro]*)[\s:-]+([0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2}|[0-9]{2}\.[0-9]{3}\.[0-9]{3}\/[0-9]{4}-[0-9]{2}|[0-9]{11,14})/i,
     ])
 
-    const causerPhone = extractField([
+    const causerPhone = extractField(text, [
       /(?:Telefone|Celular|Contato)(?:[\s do causador]*|[\s do terceiro]*)[\s:-]+(\(?\d{2}\)?\s?\d{4,5}-?\d{4})/i,
     ])
 
     const causerWhatsapp =
-      extractField([
+      extractField(text, [
         /(?:WhatsApp)(?:[\s do causador]*|[\s do terceiro]*)[\s:-]+(\(?\d{2}\)?\s?\d{4,5}-?\d{4})/i,
       ]) || causerPhone
 
-    const proprietarioNome = extractField([
+    const proprietarioNome = extractField(text, [
       /(?:Proprietário do Veículo|Nome do Proprietário|Proprietário)[\s:-]+([^\n\r]{3,50})/i,
     ])
 
-    const proprietarioTelefone = extractField([
+    const proprietarioTelefone = extractField(text, [
       /(?:Telefone do Proprietário|Telefone Proprietário|Contato do Proprietário)[\s:-]+(\(?\d{2}\)?\s?\d{4,5}-?\d{4})/i,
     ])
 
-    const causerEndereco = extractField([
+    const causerEndereco = extractField(text, [
       /(?:Endereço|Logradouro|Local de Residência|Endereço do Causador|Endereço do Terceiro)(?:[\s do causador]*|[\s do terceiro]*)[\s:-]+([^\n\r]{5,100})/i,
     ])
 
-    const dataAcidente = extractField([
-      /(?:Data(?: do)?(?: Acidente| Sinistro| Evento| Ocorrência))[\s:-]+(\d{2}\/\d{2}\/\d{4}|\d{4}-\d{2}-\d{2})/i,
-      /(?:Data)[\s:-]+(\d{2}\/\d{2}\/\d{4})/i,
-    ])
+    const dataAcidente = extractDateWithPriority(text)
 
-    const horaAcidente = extractField([
+    const horaAcidente = extractField(text, [
       /(?:Hora(?: do)?(?: Acidente| Sinistro| Evento| Ocorrência))[\s:-]+(\d{2}:\d{2}(?::\d{2})?)/i,
       /(?:Hora)[\s:-]+(\d{2}:\d{2}(?::\d{2})?)/i,
     ])
 
-    const localAcidente = extractField([
+    const localAcidente = extractField(text, [
       /(?:Local(?: do)?(?: Acidente| Sinistro| Evento| Ocorrência)|Endereço do Acidente|Local do Sinistro)[\s:-]+([^\n\r]{5,150})/i,
     ])
 
-    const anoCausador = extractField([
+    const anoCausador = extractField(text, [
       /(?:Ano(?: do)?(?: Veículo Causador| Causador| Terceiro)|Ano Fabricação)[\s:-]+(\d{4})/i,
       /(?:Ano)[\s:-]+(\d{4})/i,
     ])
@@ -191,10 +222,10 @@ Deno.serve(async (req: Request) => {
 
     const extracted = {
       cliente,
-      placaOnibus: cleanPlaca(placaOnibus),
+      placaOnibus,
       prefixo,
       causerName,
-      placaCausador: cleanPlaca(placaCausador),
+      placaCausador,
       marcaModelo,
       causerDocument,
       causerPhone,
@@ -219,11 +250,6 @@ Deno.serve(async (req: Request) => {
         ocrMethod,
         needsHandwritingOcr,
         textLength: text.length,
-        ocrConfig: {
-          language: OCR_CONFIG.language,
-          handwritingMode: OCR_CONFIG.handwritingMode,
-          preprocessing: OCR_CONFIG.preprocessing,
-        },
       }),
       {
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
