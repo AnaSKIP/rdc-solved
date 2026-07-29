@@ -55,18 +55,6 @@ Deno.serve(async (req: Request) => {
     for (const lead of realLeads) {
       const getVal = (val: any) => (val === false ? null : val)
 
-      const isMockedData = (l: any) => {
-        // Validação relaxada para evitar descartar leads reais
-        const checkStr = (v: any) => (v ? String(v).toLowerCase() : '')
-        const desc = checkStr(l.description)
-        if (desc.includes('<div') || desc.includes('<!--')) return true
-        return false
-      }
-
-      if (isMockedData(lead)) {
-        continue
-      }
-
       const baseRa = String(getVal(lead.x_ra) || getVal(lead.name) || `RA-${lead.id}`).trim()
 
       // Limpeza de campos residuais caso a validação geral passe, mas haja sujeira num campo isolado
@@ -198,14 +186,12 @@ Deno.serve(async (req: Request) => {
 
           if (attData?.success) {
             const mimeType = attData.mimeType || 'application/octet-stream'
+            const attFileName = attData.name || att.name || ''
+            const isPdf = mimeType.includes('pdf') || attFileName.toLowerCase().endsWith('.pdf')
             const { error: insertError } = await supabase.from('attachments').insert({
               claim_id: claimId,
               file_name: attData.name || att.name,
-              file_type: mimeType.includes('pdf')
-                ? 'pdf'
-                : mimeType.includes('image')
-                  ? 'image'
-                  : 'file',
+              file_type: isPdf ? 'pdf' : mimeType.includes('image') ? 'image' : 'file',
               url: attData.publicUrl,
             })
 

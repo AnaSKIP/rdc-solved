@@ -30,7 +30,11 @@ export function FilePreviewModal({
     if (!isOpen || !fileUrl) return
     setIsLoading(true)
     const isPdf =
-      fileType === 'pdf' || fileType.includes('pdf') || fileName?.toLowerCase().endsWith('.pdf')
+      fileType === 'pdf' ||
+      fileType.includes('pdf') ||
+      fileName?.toLowerCase().endsWith('.pdf') ||
+      fileUrl?.toLowerCase().endsWith('.pdf') ||
+      fileUrl?.toLowerCase().includes('.pdf')
     if (isPdf) {
       const timer = setTimeout(() => setIsLoading(false), 1500)
       return () => clearTimeout(timer)
@@ -40,11 +44,16 @@ export function FilePreviewModal({
   if (!fileUrl) return null
 
   const isPdf =
-    fileType === 'pdf' || fileType.includes('pdf') || fileName?.toLowerCase().endsWith('.pdf')
+    fileType === 'pdf' ||
+    fileType.includes('pdf') ||
+    fileName?.toLowerCase().endsWith('.pdf') ||
+    fileUrl?.toLowerCase().endsWith('.pdf') ||
+    fileUrl?.toLowerCase().includes('.pdf')
   const isImage =
     fileType === 'image' ||
     fileType.includes('image') ||
-    fileName?.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)$/)
+    fileName?.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)$/) ||
+    fileUrl?.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)$/)
   const isText =
     fileType === 'text' || fileType.includes('text') || fileName?.toLowerCase().endsWith('.txt')
   const isAudio = fileType === 'audio' || fileType.includes('audio')

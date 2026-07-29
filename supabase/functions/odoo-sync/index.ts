@@ -141,7 +141,10 @@ Deno.serve(async (req: Request) => {
         )
       }
 
-      const mimeType = attachment.mimetype || 'application/octet-stream'
+      const isPdfByName = (attachment.name || '').toLowerCase().endsWith('.pdf')
+      const mimeType = isPdfByName
+        ? 'application/pdf'
+        : attachment.mimetype || 'application/octet-stream'
       const safeName = attachment.name.replace(/[^a-zA-Z0-9.-]/g, '_')
       const fileName = `${Date.now()}_${attachment.id}_${safeName}`
       const targetClaimId = claimId || 'unknown'
@@ -341,18 +344,6 @@ Deno.serve(async (req: Request) => {
         .select('ra')
         .in('ra', raList)
       if (existingClaims) existingClaims.forEach((c: any) => existingRas.add(c.ra))
-
-      const { data: existingImportacao } = await supabaseAdmin
-        .from('caixa_entrada_importacao')
-        .select('id_ra')
-        .in('id_ra', raList)
-      if (existingImportacao) existingImportacao.forEach((c: any) => existingRas.add(c.id_ra))
-
-      const { data: existingCaixa } = await supabaseAdmin
-        .from('caixa_entrada')
-        .select('id_ra')
-        .in('id_ra', raList)
-      if (existingCaixa) existingCaixa.forEach((c: any) => existingRas.add(c.id_ra))
 
       if (existingRas.size > 0) {
         filteredLeads = leads.filter((l: any) => {

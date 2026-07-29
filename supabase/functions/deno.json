@@ -1,10 +1,10 @@
 {
   "_versions": {
-    "send-whatsapp": 35,
-    "zapi-webhook": 24,
+    "send-whatsapp": 36,
+    "zapi-webhook": 25,
     "process-pdf": 12,
-    "odoo-sync": 14,
-    "odoo-sync-automated": 7,
+    "odoo-sync": 15,
+    "odoo-sync-automated": 8,
     "transferir-todos-leads": 4,
     "transferir-leads-corrigido": 4,
     "admin-reset-password": 2,

@@ -107,8 +107,6 @@ export const KanbanProvider = ({ children }: { children: React.ReactNode }) => {
     const { data, error } = await supabase
       .from('claims')
       .select('*, attachments(id, url, file_name, file_type)')
-      .is('judicial_process_number', null)
-      .neq('stage', 'Judicial')
       .order('date', { ascending: false })
     if (error) {
       console.error(error)
@@ -116,7 +114,6 @@ export const KanbanProvider = ({ children }: { children: React.ReactNode }) => {
     }
     if (data) {
       const mapped: KanbanClaim[] = data
-        .filter((d) => (d as any)?.judicial_status !== 'Em Juízo')
         .map((d) => {
           const clientContact = contacts.find((c) => c?.id === d?.client_id?.toString())
           const clientByCnpj =

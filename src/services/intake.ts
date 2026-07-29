@@ -274,6 +274,7 @@ export const processBatchWithOcr = async (
 
       const uploadResult = await step1Upload(lead)
       if (!uploadResult.success || !uploadResult.data) {
+        console.error(`[INTAKE] Lead ${lead.id_ra} skipped — Upload failed: ${uploadResult.error}`)
         processed++
         continue
       }
@@ -311,6 +312,9 @@ export const processBatchWithOcr = async (
 
       const validationResult = await step4Validation(lead)
       if (!validationResult.success || !validationResult.data) {
+        console.error(
+          `[INTAKE] Lead ${lead.id_ra} skipped — Validation failed: ${validationResult.error}`,
+        )
         processed++
         continue
       }

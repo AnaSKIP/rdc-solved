@@ -34,8 +34,6 @@ export const runETL = async (onProgress: (msg: string) => void): Promise<ETLRepo
     const { data: rasExtraidos, error: extractError } = await supabase
       .from('caixa_entrada_importacao')
       .select('*')
-      .in('status_atual', ['REPESCAGEM', 'SEM ACORDO'])
-      .eq('status_validacao', 'VÁLIDO')
       .neq('status_transferencia', 'TRANSFERIDO')
       .lte('data_importacao', new Date().toISOString())
       .order('data_criacao', { ascending: true })
