@@ -4,6 +4,11 @@ import { supabase } from '@/lib/supabase/client'
 
 export type ImportStatus = 'idle' | 'running' | 'paused' | 'error' | 'complete'
 
+export interface OdooStage {
+  id: number
+  name: string
+}
+
 export type LogEntry = {
   id: string
   time: string
@@ -52,6 +57,8 @@ interface OdooImportState {
   ) => Promise<{ success: boolean; error?: string; count?: number }>
   isTransferring: boolean
   transferLeads: () => Promise<void>
+  selectedStageIds: number[]
+  setSelectedStageIds: (ids: number[]) => void
 }
 
 const OdooImportContext = createContext<OdooImportState | null>(null)
@@ -98,6 +105,10 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [lastImportDate, setLastImportDate] = useState<string | null>(null)
+  const [stages, setStages] = useState<OdooStage[]>([])
+  const [selectedStageIds, setSelectedStageIds] = useState<number[]>([])
+  const [isLoadingStages, setIsLoadingStages] = useState(false)
+  const [selectedStageIds, setSelectedStageIds] = useState<number[]>([])
 
   const batchSize = 100
 
@@ -121,6 +132,37 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     fetchLastImportDate()
   }, [])
+
+  const fetchStages = async () => {
+    if (!credentials) {
+      toast({
+        title: 'Atenção',
+        description: 'Configure as credenciais do Odoo primeiro.',
+        variant: 'destructive',
+      })
+      return
+    }
+    setIsLoadingStages(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('list-odoo-stages', {
+        body: { ...credentials },
+      })
+      if (error) throw error
+      if (data?.error) throw new Error(data.error)
+      const fetchedStages: OdooStage[] = data?.stages || []
+      setStages(fetchedStages)
+      addLog(`Carregados ${fetchedStages.length} estágios do pipeline CRM do Odoo.`, 'info')
+    } catch (err: any) {
+      addLog(`Erro ao buscar estágios do Odoo: ${err.message}`, 'error')
+      toast({
+        title: 'Erro ao buscar estágios',
+        description: err.message,
+        variant: 'destructive',
+      })
+    } finally {
+      setIsLoadingStages(false)
+    }
+  }
 
   const addLog = (message: string, type: LogEntry['type']) => {
     setLogs((prev) => [
@@ -151,10 +193,11 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
     setDuplicatesAvoided(0)
     setAttachedFilesCount(0)
     setLogs([])
-    addLog(
-      'Conectando à API real do Odoo para buscar contagem de leads ("Sem Acordo" e "Repescagem")...',
-      'info',
-    )
+    const stageLabel =
+      selectedStageIds.length > 0
+        ? `${selectedStageIds.length} estágio(s) selecionado(s)`
+        : '"Sem Acordo" e "Repescagem"'
+    addLog(`Conectando à API real do Odoo para buscar contagem de leads (${stageLabel})...`, 'info')
 
     try {
       const { data, error } = await supabase.functions.invoke('odoo-sync', {
@@ -163,6 +206,7 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
           countOnly: true,
           start_date: startDate || undefined,
           end_date: endDate || undefined,
+          stage_ids: selectedStageIds.length > 0 ? selectedStageIds : undefined,
         },
       })
       if (error) throw error
@@ -249,8 +293,10 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
             countOnly: true,
             start_date: startDate || undefined,
             end_date: endDate || undefined,
+            stage_ids: selectedStageIds.length > 0 ? selectedStageIds : undefined,
           },
         })
+
         if (error) throw error
         if (data?.error) throw new Error(data.error)
         runTotal = data?.count || 0
@@ -280,10 +326,26 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
     setStartTime(Date.now())
     setEta(null)
 
-    addLog(
-      `Iniciando extração fiel em lote de ${runTarget} leads (Sem Acordo e Repescagem)...`,
-      'info',
-    )
+    const stageLabel =
+      selectedStageIds.length > 0
+        ? `${selectedStageIds.length} estágio(s) selecionado(s)`
+        : 'Sem Acordo e Repescagem'
+    const stageLabel =
+      selectedStageIds.length > 0
+        ? `${selectedStageIds.length} estágio(s) selecionado(s)`
+        : 'Sem Acordo e Repescagem'
+    addLog(`Iniciando extração fiel em lote de ${runTarget} leads (${stageLabel})...`, 'info')
+    if (selectedStageIds.length > 0) {
+      const stageNames = selectedStageIds
+        .map((sid) => stages.find((s) => s.id === sid)?.name)
+        .filter(Boolean)
+        .join(', ')
+      toast({
+        title: 'Importando estágios selecionados',
+        description: stageNames || `${selectedStageIds.length} estágios`,
+        className: 'bg-blue-50 border-blue-200',
+      })
+    }
     addLog('Extração bruta ativada: Nenhuma validação obstrutiva será aplicada.', 'info')
   }
 
@@ -411,6 +473,7 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
               limit: currentBatchSize,
               start_date: startDate || undefined,
               end_date: endDate || undefined,
+              stage_ids: selectedStageIds.length > 0 ? selectedStageIds : undefined,
             },
           })
 
@@ -455,9 +518,7 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
             try {
               const getVal = (val: any) => (val === false ? null : val)
 
-              const baseRa = String(
-                getVal(lead.x_ra) || getVal(lead.name) || `RA-${lead.id}`,
-              ).trim()
+              const baseRa = String(getVal(lead.x_ra ?? lead.name ?? `RA-${lead.id}`)).trim()
 
               const causer_name =
                 getVal(lead.x_nome_causador) ||
@@ -750,7 +811,7 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
     return () => {
       mounted = false
     }
-  }, [status, processed, target, batchSize, toast, credentials])
+  }, [status, processed, target, batchSize, toast, credentials, selectedStageIds])
 
   return (
     <OdooImportContext.Provider
@@ -786,6 +847,8 @@ export const OdooImportProvider = ({ children }: { children: React.ReactNode }) 
         testConnection,
         isTransferring,
         transferLeads,
+        selectedStageIds,
+        setSelectedStageIds,
       }}
     >
       {children}

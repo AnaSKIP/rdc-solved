@@ -1,14 +1,15 @@
 {
   "_versions": {
-    "send-whatsapp": 31,
-    "zapi-webhook": 20,
+    "send-whatsapp": 32,
+    "zapi-webhook": 21,
     "process-pdf": 12,
-    "odoo-sync": 13,
+    "odoo-sync": 14,
     "odoo-sync-automated": 7,
     "transferir-todos-leads": 4,
     "transferir-leads-corrigido": 4,
     "admin-reset-password": 2,
     "enrich-infocar-sci": 3,
-    "admin-create-user": 1
+    "admin-create-user": 1,
+    "list-odoo-stages": 1
   }
 }

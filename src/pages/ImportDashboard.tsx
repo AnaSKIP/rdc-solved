@@ -9,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import useOdooImportStore from '@/stores/useOdooImportStore'
+import { StageSelector } from '@/components/StageSelector'
 import {
   Play,
   Pause,
@@ -48,6 +49,8 @@ export default function ImportDashboard() {
     setStartDate,
     setEndDate,
     lastImportDate,
+    selectedStageIds,
+    setSelectedStageIds,
     checkTotalFromOdoo,
     clearBase,
     startImport,
@@ -157,6 +160,167 @@ export default function ImportDashboard() {
 
       <div className="flex-1 overflow-auto p-4 lg:p-6">
         <div className="max-w-6xl mx-auto space-y-6">
+          <Card className="shadow-sm">
+            <CardHeader className="border-b bg-white pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Database className="w-5 h-5 text-solved" /> Selecione os estágios para importar
+              </CardTitle>
+              <CardDescription>
+                Escolha os estágios do pipeline CRM do Odoo. Se nenhum estágio for selecionado, o
+                sistema importará de "REPESCAGEM" e "SEM ACORDO" por padrão.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <StageSelector
+                credentials={credentials}
+                selectedStageIds={selectedStageIds}
+                onChange={setSelectedStageIds}
+              />
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-sm">
+            <CardHeader className="border-b bg-white pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Layers className="w-5 h-5 text-solved" /> Selecione os estágios para importar
+              </CardTitle>
+              <CardDescription>
+                Escolha um ou mais estágios do pipeline CRM do Odoo. Se nenhum for selecionado, o
+                sistema usará os estágios padrão (REPESCAGEM e SEM ACORDO).
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                <div className="flex-1">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-between font-normal"
+                        disabled={!credentials || isLoadingStages}
+                      >
+                        {isLoadingStages ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Carregando estágios...
+                          </>
+                        ) : selectedStageIds.length === 0 ? (
+                          <span className="text-gray-400">Escolha estágios...</span>
+                        ) : (
+                          <span className="truncate">
+                            {selectedStageIds
+                              .map((sid) => stages.find((s) => s.id === sid)?.name)
+                              .filter(Boolean)
+                              .join(', ')}
+                          </span>
+                        )}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[280px]">
+                      <DropdownMenuLabel className="flex items-center justify-between">
+                        <span>Estágios do Odoo</span>
+                        <Badge variant="secondary">{stages.length}</Badge>
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <ScrollArea className="h-[240px]">
+                        {stages.length === 0 ? (
+                          <div className="px-2 py-4 text-sm text-gray-500 text-center">
+                            Nenhum estágio encontrado.
+                          </div>
+                        ) : (
+                          stages.map((stage) => {
+                            const isSelected = selectedStageIds.includes(stage.id)
+                            return (
+                              <DropdownMenuItem
+                                key={stage.id}
+                                onSelect={(e) => {
+                                  e.preventDefault()
+                                  toggleStage(stage.id)
+                                }}
+                                className="cursor-pointer flex items-center gap-2"
+                              >
+                                {isSelected ? (
+                                  <CheckSquare className="w-4 h-4 text-solved" />
+                                ) : (
+                                  <Square className="w-4 h-4 text-gray-400" />
+                                )}
+                                <span>{stage.name}</span>
+                              </DropdownMenuItem>
+                            )
+                          })
+                        )}
+                      </ScrollArea>
+                      <DropdownMenuSeparator />
+                      <div className="flex gap-2 p-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={selectAllStages}
+                          type="button"
+                        >
+                          Selecionar Todos
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="flex-1 text-gray-500"
+                          onClick={clearStageSelection}
+                          type="button"
+                        >
+                          Limpar Seleção
+                        </Button>
+                      </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={fetchStages}
+                  disabled={!credentials || isLoadingStages}
+                  className="text-solved"
+                >
+                  {isLoadingStages ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                  )}
+                  Atualizar
+                </Button>
+              </div>
+              {selectedStageIds.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {selectedStageIds.map((sid) => {
+                    const stage = stages.find((s) => s.id === sid)
+                    if (!stage) return null
+                    return (
+                      <Badge
+                        key={sid}
+                        className="bg-solved/10 text-solved border border-solved/20 gap-1"
+                      >
+                        {stage.name}
+                        <button
+                          onClick={() => toggleStage(sid)}
+                          className="ml-1 hover:text-solved/70"
+                          type="button"
+                        >
+                          ×
+                        </button>
+                      </Badge>
+                    )
+                  })}
+                </div>
+              )}
+              {selectedStageIds.length === 0 && (
+                <p className="mt-3 text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-md px-3 py-2">
+                  Nenhum estágio selecionado — o sistema usará o fallback padrão (REPESCAGEM e SEM
+                  ACORDO).
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
           {!credentials && (
             <Alert className="border-orange-200 bg-orange-50 shadow-sm animate-in fade-in slide-in-from-top-4">
               <AlertTriangle className="h-5 w-5 text-orange-600" />

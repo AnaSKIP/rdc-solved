@@ -18,11 +18,7 @@ async function odooJsonRpc(
     res = await fetch(`${cleanUrl}/jsonrpc`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        method: 'call',
-        params,
-      }),
+      body: JSON.stringify({ jsonrpc: '2.0', method: 'call', params }),
     })
   } catch (networkErr: any) {
     throw new Error(
@@ -30,9 +26,7 @@ async function odooJsonRpc(
     )
   }
 
-  if (!res.ok) {
-    throw new Error(`${errorContext}: HTTP ${res.status} ${res.statusText}`)
-  }
+  if (!res.ok) throw new Error(`${errorContext}: HTTP ${res.status} ${res.statusText}`)
 
   const data = await res.json()
 
@@ -42,6 +36,37 @@ async function odooJsonRpc(
   }
 
   return data.result
+}
+
+function parseStageIds(stageIdsParam: any): number[] | null {
+  if (stageIdsParam === undefined || stageIdsParam === null) return null
+  if (Array.isArray(stageIdsParam)) {
+    return stageIdsParam.map((n) => Number(n)).filter((n) => !isNaN(n) && n > 0)
+  }
+  if (typeof stageIdsParam === 'string' && stageIdsParam.trim()) {
+    return stageIdsParam
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((n) => Number(n))
+      .filter((n) => !isNaN(n) && n > 0)
+  }
+  if (typeof stageIdsParam === 'number' && !isNaN(stageIdsParam) && stageIdsParam > 0) {
+    return [stageIdsParam]
+  }
+  return null
+}
+
+function safeField(obj: any, ...keys: string[]): any {
+  for (const k of keys) {
+    try {
+      const v = obj?.[k]
+      if (v !== undefined && v !== null && v !== false) return v
+    } catch {
+      /* field missing */
+    }
+  }
+  return null
 }
 
 Deno.serve(async (req: Request) => {
@@ -61,6 +86,7 @@ Deno.serve(async (req: Request) => {
       claimId,
       start_date,
       end_date,
+      stage_ids,
     } = reqBody
 
     if (!url || !db || !username || !apiKey) {
@@ -73,11 +99,7 @@ Deno.serve(async (req: Request) => {
 
     const uid = await odooJsonRpc(
       cleanUrl,
-      {
-        service: 'common',
-        method: 'authenticate',
-        args: [db, username, apiKey, {}],
-      },
+      { service: 'common', method: 'authenticate', args: [db, username, apiKey, {}] },
       'Falha na autenticação do Odoo',
     )
 
@@ -126,9 +148,7 @@ Deno.serve(async (req: Request) => {
       const filePath = `${targetClaimId}/${fileName}`
 
       const bytes = new Uint8Array(binaryString.length)
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i)
-      }
+      for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i)
 
       const supabaseUrl = Deno.env.get('SUPABASE_URL')!
       const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -138,9 +158,8 @@ Deno.serve(async (req: Request) => {
         .from('claim_attachments')
         .upload(filePath, bytes.buffer, { contentType: mimeType, upsert: false })
 
-      if (uploadError) {
+      if (uploadError)
         throw new Error(`Erro no upload do anexo para o Storage: ${uploadError.message}`)
-      }
 
       const { data: publicUrlData } = supabaseAdmin.storage
         .from('claim_attachments')
@@ -157,23 +176,40 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    const stageIds = await odooJsonRpc(
-      cleanUrl,
-      {
-        service: 'object',
-        method: 'execute_kw',
-        args: [db, uid, apiKey, 'crm.stage', 'search', [[['name', 'ilike', 'Repescagem']]]],
-      },
-      'Erro ao buscar estágio "Repescagem" no Odoo',
-    )
+    const parsedStageIds = parseStageIds(stage_ids)
+    let effectiveStageIds: number[] = []
 
-    if (!stageIds || stageIds.length === 0) {
-      throw new Error(
-        'Nenhum estágio "Repescagem" encontrado no Odoo. Verifique se o estágio existe no pipeline CRM do Odoo.',
-      )
+    if (parsedStageIds && parsedStageIds.length > 0) {
+      effectiveStageIds = parsedStageIds
+    } else {
+      const stageSearchTerms = ['Repescagem', 'SEM ACORDO', 'Sem Acordo', 'sem acordo']
+      const foundIds = new Set<number>()
+      for (const term of stageSearchTerms) {
+        try {
+          const ids = await odooJsonRpc(
+            cleanUrl,
+            {
+              service: 'object',
+              method: 'execute_kw',
+              args: [db, uid, apiKey, 'crm.stage', 'search', [[['name', 'ilike', term]]]],
+            },
+            `Erro ao buscar estágio "${term}" no Odoo`,
+          )
+          if (ids && Array.isArray(ids)) ids.forEach((id: number) => foundIds.add(id))
+        } catch (e) {
+          console.error(`Stage search "${term}" (non-fatal):`, e instanceof Error ? e.message : e)
+        }
+      }
+      effectiveStageIds = Array.from(foundIds)
+
+      if (effectiveStageIds.length === 0) {
+        throw new Error(
+          'Nenhum estágio "Repescagem" ou "SEM ACORDO" encontrado no Odoo. Verifique os estágios do pipeline CRM do Odoo ou selecione estágios manualmente.',
+        )
+      }
     }
 
-    const domain: any[] = [['stage_id', 'in', stageIds]]
+    const domain: any[] = [['stage_id', 'in', effectiveStageIds]]
 
     if (start_date && typeof start_date === 'string' && start_date.trim()) {
       domain.push(['create_date', '>=', start_date.trim()])
@@ -192,57 +228,102 @@ Deno.serve(async (req: Request) => {
         },
         'Erro ao contar leads no Odoo',
       )
-
       return new Response(JSON.stringify({ success: true, count: count || 0 }), {
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       })
     }
 
-    const leads =
-      (await odooJsonRpc(
-        cleanUrl,
-        {
-          service: 'object',
-          method: 'execute_kw',
-          args: [
-            db,
-            uid,
-            apiKey,
-            'crm.lead',
-            'search_read',
-            [domain],
+    const requestedFields = [
+      'id',
+      'name',
+      'expected_revenue',
+      'partner_id',
+      'partner_name',
+      'description',
+      'phone',
+      'mobile',
+      'user_id',
+      'stage_id',
+      'create_date',
+      'contact_name',
+      'x_placa_onibus',
+      'x_prefixo_onibus',
+      'x_data_acidente',
+      'x_nome_causador',
+      'x_cpf_cnpj_causador',
+      'x_placa_causador',
+      'x_cnpj',
+      'x_cpf_cnpj',
+      'x_ra',
+      'x_tipo_veiculo_causador',
+    ]
+
+    let leads: any[] = []
+    try {
+      leads =
+        (await odooJsonRpc(
+          cleanUrl,
+          {
+            service: 'object',
+            method: 'execute_kw',
+            args: [
+              db,
+              uid,
+              apiKey,
+              'crm.lead',
+              'search_read',
+              [domain],
+              { fields: requestedFields, offset, limit },
+            ],
+          },
+          'Erro ao buscar leads no Odoo',
+        )) || []
+    } catch (leadErr: any) {
+      const msg = leadErr instanceof Error ? leadErr.message : String(leadErr)
+      if (msg.includes('field') || msg.toLowerCase().includes('x_')) {
+        const safeFields = requestedFields.filter((f) => !f.startsWith('x_'))
+        leads =
+          (await odooJsonRpc(
+            cleanUrl,
             {
-              fields: [
-                'id',
-                'name',
-                'expected_revenue',
-                'partner_id',
-                'partner_name',
-                'description',
-                'phone',
-                'mobile',
-                'user_id',
-                'stage_id',
-                'create_date',
-                'x_placa_onibus',
-                'x_prefixo_onibus',
-                'x_data_acidente',
-                'x_nome_causador',
-                'x_cpf_cnpj_causador',
-                'x_placa_causador',
-                'x_cnpj',
-                'x_cpf_cnpj',
-                'x_ra',
-                'x_tipo_veiculo_causador',
-                'contact_name',
+              service: 'object',
+              method: 'execute_kw',
+              args: [
+                db,
+                uid,
+                apiKey,
+                'crm.lead',
+                'search_read',
+                [domain],
+                { fields: safeFields, offset, limit },
               ],
-              offset,
-              limit,
             },
-          ],
-        },
-        'Erro ao buscar leads no Odoo',
-      )) || []
+            'Erro ao buscar leads no Odoo (campos customizados removidos)',
+          )) || []
+      } else {
+        throw leadErr
+      }
+    }
+
+    leads = leads.map((l) => {
+      try {
+        return {
+          ...l,
+          x_placa_onibus: safeField(l, 'x_placa_onibus'),
+          x_prefixo_onibus: safeField(l, 'x_prefixo_onibus'),
+          x_data_acidente: safeField(l, 'x_data_acidente'),
+          x_nome_causador: safeField(l, 'x_nome_causador'),
+          x_cpf_cnpj_causador: safeField(l, 'x_cpf_cnpj_causador'),
+          x_placa_causador: safeField(l, 'x_placa_causador'),
+          x_cnpj: safeField(l, 'x_cnpj'),
+          x_cpf_cnpj: safeField(l, 'x_cpf_cnpj'),
+          x_ra: safeField(l, 'x_ra'),
+          x_tipo_veiculo_causador: safeField(l, 'x_tipo_veiculo_causador'),
+        }
+      } catch {
+        return l
+      }
+    })
 
     let filteredLeads = leads
     if (leads.length > 0) {
@@ -250,7 +331,9 @@ Deno.serve(async (req: Request) => {
       const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
       const supabaseAdmin = createClient(supabaseUrl, supabaseKey)
 
-      const raList = leads.map((l: any) => String(l.x_ra || l.name || `RA-${l.id}`).trim())
+      const raList = leads.map((l: any) =>
+        String(safeField(l, 'x_ra') || l.name || `RA-${l.id}`).trim(),
+      )
       const existingRas = new Set<string>()
 
       const { data: existingClaims } = await supabaseAdmin
@@ -273,14 +356,13 @@ Deno.serve(async (req: Request) => {
 
       if (existingRas.size > 0) {
         filteredLeads = leads.filter((l: any) => {
-          const lRa = String(l.x_ra || l.name || `RA-${l.id}`).trim()
+          const lRa = String(safeField(l, 'x_ra') || l.name || `RA-${l.id}`).trim()
           return !existingRas.has(lRa)
         })
       }
     }
 
     const leadIds = filteredLeads.map((l: any) => l.id)
-
     const partnerIds = filteredLeads
       .map((l: any) => (l.partner_id && Array.isArray(l.partner_id) ? l.partner_id[0] : null))
       .filter(Boolean)
@@ -335,9 +417,7 @@ Deno.serve(async (req: Request) => {
           if (!lead.vat && !lead.x_cnpj && !lead.x_cpf_cnpj) {
             lead.vat = p.vat || p.l10n_br_cnpj_cpf || p.x_cnpj || p.x_cpf_cnpj
           }
-          if (!lead.phone && !lead.mobile) {
-            lead.phone = p.phone || p.mobile
-          }
+          if (!lead.phone && !lead.mobile) lead.phone = p.phone || p.mobile
           if (!lead.x_ra && p.x_ra) lead.x_ra = p.x_ra
         }
       }
