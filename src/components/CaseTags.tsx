@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Check, Plus, Tag } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import useKanbanStore from '@/stores/useKanbanStore'
+import { useKanbanStore } from '@/stores/useKanbanStore'
 
 export const AVAILABLE_TAGS = [
   {

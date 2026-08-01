@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { FileSignature, Upload, FileText, CheckCircle2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import useKanbanStore from '@/stores/useKanbanStore'
+import { useKanbanStore } from '@/stores/useKanbanStore'
 
 export function AgreementPanel() {
   const { selectedClaim, updateClaim } = useKanbanStore()

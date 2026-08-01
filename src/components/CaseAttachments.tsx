@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { FilePreviewModal } from '@/components/FilePreviewModal'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
-import useKanbanStore from '@/stores/useKanbanStore'
+import { useKanbanStore } from '@/stores/useKanbanStore'
 
 export function CaseAttachments() {
   const { selectedClaim, updateClaim, refreshClaims } = useKanbanStore()
