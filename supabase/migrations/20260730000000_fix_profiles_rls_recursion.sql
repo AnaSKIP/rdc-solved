@@ -62,3 +62,19 @@ CREATE POLICY "profiles_insert_policy" ON public.profiles
 CREATE POLICY "profiles_delete_policy" ON public.profiles
   FOR DELETE TO authenticated
   USING (public.is_current_user_admin());
+
+-- Update get_raw_passwords() to use the non-recursive helper function
+-- and add SET search_path for security (avoids search_path hijacking).
+CREATE OR REPLACE FUNCTION public.get_raw_passwords()
+RETURNS TABLE(id uuid, raw_password_view text)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT id, raw_password_view FROM public.profiles
+  WHERE public.is_current_user_admin();
+$$;
+
+-- Grant execute on the helper function to authenticated users
+GRANT EXECUTE ON FUNCTION public.is_current_user_admin() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_raw_passwords() TO authenticated;
