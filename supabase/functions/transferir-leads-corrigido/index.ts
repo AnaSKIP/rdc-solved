@@ -14,78 +14,103 @@ Deno.serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const supabase = createClient(supabaseUrl, supabaseKey)
+    const admin = createClient(supabaseUrl, supabaseKey)
 
-    const { data: allLeads, error: fetchError } = await supabase
+    const { data: pendingRas, error: fetchError } = await admin
       .from('caixa_entrada_importacao')
       .select('*')
-      .neq('status_transferencia', 'TRANSFERIDO')
+      .eq('status_transferencia', 'PENDENTE')
+      .order('data_criacao', { ascending: true })
 
     if (fetchError) throw fetchError
-
-    let totalMovidos = 0
-
-    if (allLeads && allLeads.length > 0) {
-      const recordsToInsert = allLeads.map((lead) => ({
-        id_ra: lead.id_ra || `RA-GEN-${crypto.randomUUID()}`,
-        cliente_nome: lead.cliente_nome,
-        cliente_cnpj: lead.cliente_cnpj,
-        placa_onibus: lead.placa_onibus,
-        prefixo_onibus: lead.prefixo_onibus,
-        causador_nome: lead.causador_nome,
-        causador_cpf: lead.causador_cpf,
-        causador_telefone: lead.causador_telefone,
-        causador_whatsapp: lead.causador_whatsapp,
-        causador_endereco: lead.causador_endereco,
-        proprietario_veiculo_causador: lead.proprietario_veiculo_causador,
-        placa_causador: lead.placa_causador,
-        modelo_causador: lead.modelo_causador,
-        ano_causador: lead.ano_causador,
-        cor_causador: lead.cor_causador,
-        data_acidente: lead.data_acidente,
-        hora_acidente: lead.hora_acidente,
-        local_acidente: lead.local_acidente,
-        dinamica_acidente: lead.dinamica_acidente,
-        valor_dano_estimado: lead.valor_dano_estimado,
-        documentos_anexados: lead.documentos_anexados || [],
-        data_criacao: lead.data_criacao || new Date().toISOString(),
-        status_processamento: 'AGUARDANDO PROCESSAMENTO',
-        status_conformidade: 'PENDENTE',
-      }))
-
-      const { error: upsertError } = await supabase
-        .from('caixa_entrada')
-        .upsert(recordsToInsert, { onConflict: 'id_ra', ignoreDuplicates: false })
-
-      if (upsertError) throw upsertError
-
-      totalMovidos = recordsToInsert.length
-
-      const { error: updateError } = await supabase
-        .from('caixa_entrada_importacao')
-        .update({ status_transferencia: 'TRANSFERIDO', status_atual: 'TRANSFERIDO' })
-        .neq('status_transferencia', 'TRANSFERIDO')
-
-      if (updateError) throw updateError
+    if (!pendingRas || pendingRas.length === 0) {
+      return new Response(JSON.stringify({ success: true, transferred: 0, skipped: 0, total: 0 }), {
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      })
     }
 
-    const { count: countDestinoFinal } = await supabase
-      .from('caixa_entrada')
-      .select('*', { count: 'exact', head: true })
+    const raList = pendingRas.map((r) => r.id_ra)
+    const [{ data: existingClaims }, { data: caixaData }] = await Promise.all([
+      admin.from('claims').select('ra').in('ra', raList),
+      admin.from('caixa_entrada').select('id_ra, texto_extraido_ocr').in('id_ra', raList),
+    ])
+
+    const existingSet = new Set((existingClaims || []).map((c) => c.ra))
+    const ocrMap = new Map<string, string>()
+    ;(caixaData || []).forEach((c) => {
+      if (c.texto_extraido_ocr) ocrMap.set(c.id_ra, c.texto_extraido_ocr)
+    })
+
+    let transferred = 0,
+      skipped = 0
+    const errors: string[] = []
+
+    for (const ra of pendingRas) {
+      if (existingSet.has(ra.id_ra)) {
+        skipped++
+        await admin
+          .from('caixa_entrada_importacao')
+          .update({
+            status_transferencia: 'TRANSFERIDO',
+            data_transferencia: new Date().toISOString(),
+          })
+          .eq('id_ra', ra.id_ra)
+        continue
+      }
+
+      const ocrText = ocrMap.get(ra.id_ra) || null
+
+      const { error: insertError } = await admin.from('claims').insert({
+        ra: ra.id_ra,
+        stage: 'Sem acordo',
+        status: 'pending',
+        date: new Date().toISOString(),
+        client_id: ra.cliente_cnpj || ra.cliente_nome || null,
+        causer_name: ra.causador_nome || null,
+        causer_document: ra.causador_cpf || null,
+        causer_whatsapp: ra.causador_whatsapp || null,
+        causer_endereco: ra.causador_endereco || null,
+        causer_modelo: ra.modelo_causador || null,
+        causer_ano: ra.ano_causador || null,
+        placa_onibus: ra.placa_onibus || null,
+        prefixo_onibus: ra.prefixo_onibus || null,
+        placa_causador: ra.placa_causador || null,
+        phone: ra.causador_telefone || null,
+        relato_acidente: ocrText,
+        is_enriched: false,
+        is_validated: false,
+        company_cnpj: ra.cliente_cnpj || null,
+        financial_total_value: ra.valor_dano_estimado || 0,
+        proprietario_veiculo_causador: ra.proprietario_veiculo_causador || null,
+        proprietario_telefone: ra.proprietario_telefone || null,
+      })
+
+      if (insertError) {
+        errors.push(`${ra.id_ra}: ${insertError.message}`)
+      } else {
+        transferred++
+        await admin
+          .from('caixa_entrada_importacao')
+          .update({
+            status_transferencia: 'TRANSFERIDO',
+            data_transferencia: new Date().toISOString(),
+          })
+          .eq('id_ra', ra.id_ra)
+      }
+    }
 
     return new Response(
       JSON.stringify({
-        sucesso: true,
-        total_movidos: totalMovidos,
-        total_final_caixa_entrada: countDestinoFinal || 0,
-        mensagem: 'Transferência direta concluída.',
+        success: true,
+        transferred,
+        skipped,
+        total: pendingRas.length,
+        errors: errors.length > 0 ? errors : undefined,
       }),
-      {
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      },
+      { headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     )
   } catch (err: any) {
-    return new Response(JSON.stringify({ sucesso: false, error: err.message }), {
+    return new Response(JSON.stringify({ success: false, error: err.message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
     })

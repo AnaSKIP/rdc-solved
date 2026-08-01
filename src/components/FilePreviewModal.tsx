@@ -1,110 +1,108 @@
-import { useState, useEffect } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog'
-import { File, Loader2, Download } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { FileText, Download, Loader2, FileWarning } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface FilePreviewModalProps {
-  isOpen: boolean
+  open: boolean
   onClose: () => void
-  fileUrl: string | null
-  fileName: string
-  fileType: string
+  url: string | null
+  fileName: string | null
+  fileType: string | null
 }
 
 export function FilePreviewModal({
-  isOpen,
+  open,
   onClose,
-  fileUrl,
+  url,
   fileName,
   fileType,
 }: FilePreviewModalProps) {
-  const [isLoading, setIsLoading] = useState(true)
+  const [blobUrl, setBlobUrl] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const blobUrlRef = useRef<string | null>(null)
+
+  const isPdf = (fileType?.includes('pdf') || fileName?.toLowerCase().endsWith('.pdf')) ?? false
+  const isImage =
+    (fileType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(fileName || '')) ??
+    false
 
   useEffect(() => {
-    if (!isOpen || !fileUrl) return
-    setIsLoading(true)
-    const isPdf =
-      fileType === 'pdf' ||
-      fileType.includes('pdf') ||
-      fileName?.toLowerCase().endsWith('.pdf') ||
-      fileUrl?.toLowerCase().endsWith('.pdf') ||
-      fileUrl?.toLowerCase().includes('.pdf')
-    if (isPdf) {
-      const timer = setTimeout(() => setIsLoading(false), 1500)
-      return () => clearTimeout(timer)
+    if (!open || !url) {
+      setBlobUrl(null)
+      return
     }
-  }, [isOpen, fileUrl, fileType, fileName])
 
-  if (!fileUrl) return null
+    if (isPdf) {
+      setLoading(true)
+      fetch(url)
+        .then((res) => res.blob())
+        .then((blob) => {
+          if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current)
+          const typedBlob = new Blob([blob], { type: 'application/pdf' })
+          const objUrl = URL.createObjectURL(typedBlob)
+          blobUrlRef.current = objUrl
+          setBlobUrl(objUrl)
+          setLoading(false)
+        })
+        .catch(() => {
+          setBlobUrl(url)
+          setLoading(false)
+        })
+    } else {
+      setBlobUrl(null)
+    }
 
-  const isPdf =
-    fileType === 'pdf' ||
-    fileType.includes('pdf') ||
-    fileName?.toLowerCase().endsWith('.pdf') ||
-    fileUrl?.toLowerCase().endsWith('.pdf') ||
-    fileUrl?.toLowerCase().includes('.pdf')
-  const isImage =
-    fileType === 'image' ||
-    fileType.includes('image') ||
-    fileName?.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)$/) ||
-    fileUrl?.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)$/)
-  const isText =
-    fileType === 'text' || fileType.includes('text') || fileName?.toLowerCase().endsWith('.txt')
-  const isAudio = fileType === 'audio' || fileType.includes('audio')
-  const isVideo = fileType === 'video' || fileType.includes('video')
+    return () => {
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current)
+        blobUrlRef.current = null
+      }
+    }
+  }, [open, url, isPdf])
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-4 sm:rounded-lg overflow-hidden">
-        <DialogHeader className="pb-2 flex-shrink-0">
-          <DialogTitle className="text-lg text-gray-800">{fileName}</DialogTitle>
-          <DialogDescription>
-            Pré-visualização do documento de mídia anexado ao sinistro.
-          </DialogDescription>
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-4xl w-[95vw] h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="truncate pr-8">{fileName || 'Pré-visualização'}</DialogTitle>
         </DialogHeader>
-        <div className="flex-1 w-full bg-gray-100 rounded-md overflow-hidden flex items-center justify-center border border-gray-200 shadow-inner relative">
-          {isLoading && (isImage || isPdf) && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 z-10">
-              <Loader2 className="w-10 h-10 animate-spin text-gray-400" />
-              <p className="text-sm text-gray-500 mt-2">Carregando documento...</p>
+        <div className="flex-1 overflow-hidden rounded-lg border bg-muted/30">
+          {loading && (
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           )}
-          {isPdf ? (
-            <iframe src={fileUrl} className="w-full h-full border-none" title={fileName} />
-          ) : isImage ? (
-            <img
-              src={fileUrl}
-              alt={fileName}
-              className="max-w-full max-h-full object-contain"
-              onLoad={() => setIsLoading(false)}
-              onError={() => setIsLoading(false)}
-            />
-          ) : isText ? (
+          {!loading && isPdf && blobUrl && (
             <iframe
-              src={fileUrl}
-              className="w-full h-full border-none bg-white p-4"
-              title={fileName}
+              src={blobUrl}
+              title={fileName || 'PDF Preview'}
+              className="w-full h-full border-0"
             />
-          ) : isAudio ? (
-            <audio controls src={fileUrl} className="w-full max-w-md" />
-          ) : isVideo ? (
-            <video controls src={fileUrl} className="max-w-full max-h-full" />
-          ) : (
-            <div className="flex flex-col items-center justify-center text-gray-500">
-              <File className="w-16 h-16 mb-4 text-gray-400" />
-              <p>Visualização nativa não disponível para este formato.</p>
-              <Button asChild className="mt-4">
-                <a href={fileUrl} download={fileName}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Fazer Download do Arquivo
-                </a>
-              </Button>
+          )}
+          {!loading && isImage && url && (
+            <div className="flex items-center justify-center h-full p-4">
+              <img
+                src={url}
+                alt={fileName || 'Image'}
+                className="max-w-full max-h-full object-contain"
+              />
+            </div>
+          )}
+          {!loading && !isPdf && !isImage && (
+            <div className="flex flex-col items-center justify-center h-full gap-4">
+              <FileWarning className="h-12 w-12 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                Pré-visualização não disponível para este tipo de arquivo.
+              </p>
+              {url && (
+                <Button asChild>
+                  <a href={url} download={fileName || 'arquivo'}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Baixar arquivo
+                  </a>
+                </Button>
+              )}
             </div>
           )}
         </div>
