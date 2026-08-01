@@ -19,7 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import useKanbanStore from '@/stores/useKanbanStore'
+import { useKanbanStore } from '@/stores/useKanbanStore'
 import useCaseStore from '@/stores/useCaseStore'
 import { ROLES } from '@/stores/usePermissionsStore'
 import { useAuth } from '@/hooks/use-auth'

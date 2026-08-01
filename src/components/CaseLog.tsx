@@ -15,7 +15,7 @@ import {
   DollarSign,
 } from 'lucide-react'
 import useCaseStore, { ActivityType } from '@/stores/useCaseStore'
-import useKanbanStore from '@/stores/useKanbanStore'
+import { useKanbanStore } from '@/stores/useKanbanStore'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'

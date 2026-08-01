@@ -26,7 +26,7 @@ import {
   CheckCircle2,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
-import useKanbanStore from '@/stores/useKanbanStore'
+import { useKanbanStore } from '@/stores/useKanbanStore'
 import useCaseStore from '@/stores/useCaseStore'
 import { cn } from '@/lib/utils'
 

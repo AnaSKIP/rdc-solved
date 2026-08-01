@@ -5,7 +5,7 @@ import { MessageSquare, Send, X, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import useKanbanStore from '@/stores/useKanbanStore'
+import { useKanbanStore } from '@/stores/useKanbanStore'
 
 export function InternalChat() {
   const [isOpen, setIsOpen] = useState(false)
