@@ -21,7 +21,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useToast } from '@/hooks/use-toast'
-import useOdooImportStore from '@/stores/useOdooImportStore'
+import { useOdooImportStore } from '@/stores/useOdooImportStore'
 import usePermissionsStore, { ROLES, ModuleId } from '@/stores/usePermissionsStore'
 import { useAuth } from '@/hooks/use-auth'
 import { supabase } from '@/lib/supabase/client'

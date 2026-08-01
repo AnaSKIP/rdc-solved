@@ -8,7 +8,7 @@ import { Progress } from '@/components/ui/progress'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import useOdooImportStore from '@/stores/useOdooImportStore'
+import { useOdooImportStore } from '@/stores/useOdooImportStore'
 import { StageSelector } from '@/components/StageSelector'
 import {
   Play,

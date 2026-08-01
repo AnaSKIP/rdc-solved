@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import useCaseStore, { PIPELINE_STAGES, PipelineStage } from '@/stores/useCaseStore'
-import useKanbanStore, { KanbanClaim } from '@/stores/useKanbanStore'
+import { useKanbanStore, KanbanClaim } from '@/stores/useKanbanStore'
 import { useToast } from '@/hooks/use-toast'
 import { PasswordConfirmModal } from '@/components/PasswordConfirmModal'
 import { supabase } from '@/lib/supabase/client'
