@@ -9,9 +9,6 @@ import { ShieldAlert, ArrowLeft, MessageSquareWarning, Scale, ScrollText } from 
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { useEffect } from 'react'
-import { supabase } from '@/lib/supabase/client'
-
 const CaseLogWrapper = () => {
   return (
     <Tabs defaultValue="log" className="flex-1 flex flex-col h-full overflow-hidden w-full">
@@ -82,29 +79,7 @@ const CaseDetail = () => {
 }
 
 const KanbanPage = () => {
-  const { selectedClaim, refreshClaims } = useKanbanStore()
-
-  useEffect(() => {
-    const processPdfs = async () => {
-      console.log('Extração iniciada')
-      try {
-        const { data, error } = await supabase.functions.invoke('processar-pdf-leads')
-
-        if (error) {
-          throw error
-        }
-
-        const count = data?.count ?? data?.leads?.length ?? data?.extractedCount ?? 0
-        console.log(`${count} leads extraídos com sucesso`)
-
-        refreshClaims()
-      } catch (error: any) {
-        console.error(error.message || 'Erro ao processar leads')
-      }
-    }
-
-    processPdfs()
-  }, [refreshClaims])
+  const { selectedClaim } = useKanbanStore()
 
   if (selectedClaim) {
     return <CaseDetail />

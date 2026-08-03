@@ -24,7 +24,10 @@ interface KanbanContextType {
   loading: boolean
   error: string | null
   refresh: () => Promise<void>
+  refreshClaims: () => Promise<void>
   updateClaimStage: (id: string, stage: string) => Promise<void>
+  selectedClaim: KanbanClaim | null
+  setSelectedClaim: (claim: KanbanClaim | null) => void
 }
 
 const KanbanContext = createContext<KanbanContextType | undefined>(undefined)
@@ -39,6 +42,7 @@ export const KanbanProvider = ({ children }: { children: ReactNode }) => {
   const [claims, setClaims] = useState<KanbanClaim[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedClaim, setSelectedClaim] = useState<KanbanClaim | null>(null)
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -106,7 +110,18 @@ export const KanbanProvider = ({ children }: { children: ReactNode }) => {
   }, [refresh])
 
   return (
-    <KanbanContext.Provider value={{ claims, loading, error, refresh, updateClaimStage }}>
+    <KanbanContext.Provider
+      value={{
+        claims,
+        loading,
+        error,
+        refresh,
+        refreshClaims: refresh,
+        updateClaimStage,
+        selectedClaim,
+        setSelectedClaim,
+      }}
+    >
       {children}
     </KanbanContext.Provider>
   )

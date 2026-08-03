@@ -888,6 +888,7 @@ export type Database = {
           raw_password_view: string
         }[]
       }
+      is_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
