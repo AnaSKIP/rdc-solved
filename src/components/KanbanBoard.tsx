@@ -56,6 +56,7 @@ export type PipelineStage = (typeof PIPELINE_STAGES)[number]
 import { useAuth } from '@/hooks/use-auth'
 import useContactStore from '@/stores/useContactStore'
 import { cn, formatRaDisplay } from '@/lib/utils'
+import { getStageLabel } from '@/lib/stage-labels'
 import { KanbanList } from './KanbanList'
 import { Users, FileText } from 'lucide-react'
 
@@ -561,7 +562,7 @@ export function KanbanBoard() {
                   >
                     <div className="px-3 py-3 border-b border-gray-200 bg-gray-100 rounded-t-lg flex items-center justify-between shrink-0">
                       <h3 className="text-[12px] font-bold text-gray-700 uppercase tracking-wider">
-                        {stage}
+                        {getStageLabel(stage)}
                       </h3>
                       <Badge variant="secondary" className="bg-white border-gray-300 text-gray-700">
                         {stageClaims.length}

@@ -30,6 +30,7 @@ import { ContactPreviewPopover } from '@/components/ContactPreviewPopover'
 import { FilePreviewModal } from '@/components/FilePreviewModal'
 import useContactStore from '@/stores/useContactStore'
 import { fetchClaimsPaginated, enrichClaims, Claim } from '@/services/claims'
+import { getStageLabel } from '@/lib/stage-labels'
 
 export default function Repescagem() {
   const { toast } = useToast()
@@ -99,7 +100,7 @@ export default function Repescagem() {
       <div className="bg-white border-b px-6 py-4 flex flex-col sm:flex-row justify-between sm:items-center gap-4 sticky top-0 z-20">
         <div>
           <h1 className="text-xl font-semibold flex items-center gap-3">
-            Importação e Repescagem
+            Importação e Finalizados Sem Acordo
             <Badge variant="secondary" className="bg-blue-50 text-blue-700">
               {totalCount} Processos
             </Badge>
@@ -115,7 +116,7 @@ export default function Repescagem() {
               <SelectContent>
                 <SelectItem value="all">Todas as Fases</SelectItem>
                 <SelectItem value="Sem acordo">Sem Acordo</SelectItem>
-                <SelectItem value="Repescagem">Repescagem</SelectItem>
+                <SelectItem value="Repescagem">Finalizados Sem Acordo</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -175,7 +176,7 @@ export default function Repescagem() {
                     </TableCell>
                     <TableCell className="font-medium">{claim.ra}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{claim.stage}</Badge>
+                      <Badge variant="outline">{getStageLabel(claim.stage)}</Badge>
                     </TableCell>
                     <TableCell>
                       <div className="text-sm font-semibold">
