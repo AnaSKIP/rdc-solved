@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useKanbanStore } from '@/stores/useKanbanStore'
-import { useCaseStore } from '@/stores/useCaseStore'
+import useCaseStore from '@/stores/useCaseStore'
 import { useToast } from '@/hooks/use-toast'
 import {
   Table,

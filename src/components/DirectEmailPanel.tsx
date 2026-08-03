@@ -14,7 +14,7 @@ import { Send, Mail, FileText, Loader2, Sparkles } from 'lucide-react'
 import useCaseStore, { ActivityType } from '@/stores/useCaseStore'
 import { useToast } from '@/hooks/use-toast'
 import { formatRaDisplay } from '@/lib/utils'
-import useKanbanStore from '@/stores/useKanbanStore'
+import { useKanbanStore } from '@/stores/useKanbanStore'
 
 interface DirectEmailPanelProps {
   onEmailSent: (logText: string, type?: ActivityType) => void

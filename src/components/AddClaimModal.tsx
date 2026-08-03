@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/select'
 import { supabase } from '@/lib/supabase/client'
 import { useToast } from '@/hooks/use-toast'
-import useKanbanStore from '@/stores/useKanbanStore'
+import { useKanbanStore } from '@/stores/useKanbanStore'
 import useContactStore from '@/stores/useContactStore'
 import { Loader2 } from 'lucide-react'
 

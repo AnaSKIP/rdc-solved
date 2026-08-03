@@ -36,7 +36,7 @@ import { FilePreviewModal } from '@/components/FilePreviewModal'
 import { AddClaimModal } from '@/components/AddClaimModal'
 import { PasswordConfirmModal } from '@/components/PasswordConfirmModal'
 import { getTagStyle, AVAILABLE_TAGS } from '@/components/CaseTags'
-import useKanbanStore, { KanbanClaim } from '@/stores/useKanbanStore'
+import { useKanbanStore, KanbanClaim } from '@/stores/useKanbanStore'
 import useCaseStore from '@/stores/useCaseStore'
 import { useToast } from '@/hooks/use-toast'
 
