@@ -52,7 +52,7 @@ const MODULE_DEFINITIONS = [
   { id: 'kanban', title: 'Workspace (Kanban)', icon: Briefcase },
   { id: 'intake', title: 'Caixa de Entrada', icon: Inbox },
   { id: 'vistorias', title: 'Vistorias', icon: CheckCircle2 },
-  { id: 'repescagem', title: 'Repescagem', icon: RefreshCcw },
+  { id: 'repescagem', title: 'FINALIZADOS SEM ACORDO', icon: RefreshCcw },
   { id: 'juridico', title: 'Jurídico', icon: Scale },
   { id: 'contatos', title: 'Contatos', icon: Users },
   { id: 'dashboard', title: 'Produtividade', icon: LayoutDashboard },

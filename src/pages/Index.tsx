@@ -44,7 +44,7 @@ const MODULES = [
   },
   {
     id: 'repescagem',
-    title: 'Repescagem',
+    title: 'FINALIZADOS SEM ACORDO',
     description: 'Tratativa e pesquisa de casos sem acordo',
     icon: RefreshCcw,
     url: '/repescagem',
