@@ -1,15 +1,15 @@
 {
   "_versions": {
-    "send-whatsapp": 38,
-    "zapi-webhook": 27,
-    "process-pdf": 12,
-    "odoo-sync": 16,
-    "odoo-sync-automated": 8,
-    "transferir-todos-leads": 5,
-    "transferir-leads-corrigido": 5,
-    "admin-reset-password": 2,
-    "enrich-infocar-sci": 3,
-    "admin-create-user": 1,
-    "list-odoo-stages": 1
+    "send-whatsapp": 39,
+    "zapi-webhook": 28,
+    "process-pdf": 13,
+    "odoo-sync": 17,
+    "odoo-sync-automated": 9,
+    "transferir-todos-leads": 6,
+    "transferir-leads-corrigido": 6,
+    "admin-reset-password": 3,
+    "enrich-infocar-sci": 4,
+    "admin-create-user": 2,
+    "list-odoo-stages": 2
   }
 }
