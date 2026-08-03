@@ -39,6 +39,7 @@ import { getTagStyle, AVAILABLE_TAGS } from '@/components/CaseTags'
 import { useKanbanStore, KanbanClaim } from '@/stores/useKanbanStore'
 import useCaseStore from '@/stores/useCaseStore'
 import { useToast } from '@/hooks/use-toast'
+import { supabase } from '@/lib/supabase/client'
 
 export const PIPELINE_STAGES = [
   'Caixa de Entrada',
@@ -75,6 +76,7 @@ export function KanbanBoard() {
     setDateFilter,
     viewMode,
     setViewMode,
+    loading,
   } = useKanbanStore()
 
   const {
@@ -88,7 +90,7 @@ export function KanbanBoard() {
   } = useCaseStore()
 
   const { user, isAdmin: isDbAdmin } = useAuth()
-  const { contacts } = useContactStore()
+  const contacts = useContactStore().contacts || []
   const { toast } = useToast()
 
   const [previewFile, setPreviewFile] = useState<{
@@ -130,10 +132,11 @@ export function KanbanBoard() {
   }, [isAdmin, user, contacts, analysts, analystFilter, setAnalystFilter])
 
   const toggleTagFilter = (tag: string) => {
-    if (tagFilters.includes(tag)) {
-      setTagFilters(tagFilters.filter((t) => t !== tag))
+    const filters = tagFilters || []
+    if (filters.includes(tag)) {
+      setTagFilters(filters.filter((t) => t !== tag))
     } else {
-      setTagFilters([...tagFilters, tag])
+      setTagFilters([...filters, tag])
     }
   }
 
@@ -512,7 +515,22 @@ export function KanbanBoard() {
         </div>
       </div>
 
-      {viewMode === 'board' ? (
+      {loading ? (
+        <div className="flex-1 flex items-center justify-center bg-gray-100">
+          <div className="flex flex-col items-center gap-3 text-gray-500">
+            <div className="w-8 h-8 border-2 border-gray-300 border-t-solved rounded-full animate-spin" />
+            <p className="text-sm font-medium">Carregando sinistros...</p>
+          </div>
+        </div>
+      ) : (claims || []).length === 0 ? (
+        <div className="flex-1 flex items-center justify-center bg-gray-100">
+          <div className="flex flex-col items-center gap-2 text-gray-400">
+            <LayoutDashboard className="w-12 h-12 opacity-50" />
+            <p className="text-sm font-medium">Nenhum sinistro encontrado.</p>
+            <p className="text-xs">Sincronize com o Odoo ou adicione um novo sinistro.</p>
+          </div>
+        </div>
+      ) : viewMode === 'board' ? (
         <>
           <div
             ref={topScrollRef}
