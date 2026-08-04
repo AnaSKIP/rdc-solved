@@ -876,6 +876,131 @@ export type Database = {
         }
         Relationships: []
       }
+      travel_hotels_kb: {
+        Row: {
+          address: string | null
+          created_at: string
+          destination: string
+          hotel_name: string
+          id: string
+          link_ref: string | null
+          notes: string | null
+          phone: string | null
+          price_range: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          destination?: string
+          hotel_name?: string
+          id?: string
+          link_ref?: string | null
+          notes?: string | null
+          phone?: string | null
+          price_range?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          destination?: string
+          hotel_name?: string
+          id?: string
+          link_ref?: string | null
+          notes?: string | null
+          phone?: string | null
+          price_range?: string | null
+        }
+        Relationships: []
+      }
+      travel_plans: {
+        Row: {
+          air_company: string | null
+          air_date: string | null
+          air_route: string | null
+          air_status: string | null
+          air_value: number | null
+          bus_company_line: string | null
+          bus_date: string | null
+          bus_status: string | null
+          bus_value: number | null
+          claim_id: string
+          created_at: string
+          destination_city: string
+          end_date: string | null
+          hotel_daily_rate: number | null
+          hotel_name: string | null
+          hotel_qty: number | null
+          hotel_status: string | null
+          id: string
+          reason: string
+          related_company: string | null
+          responsible_name: string
+          start_date: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          air_company?: string | null
+          air_date?: string | null
+          air_route?: string | null
+          air_status?: string | null
+          air_value?: number | null
+          bus_company_line?: string | null
+          bus_date?: string | null
+          bus_status?: string | null
+          bus_value?: number | null
+          claim_id: string
+          created_at?: string
+          destination_city?: string
+          end_date?: string | null
+          hotel_daily_rate?: number | null
+          hotel_name?: string | null
+          hotel_qty?: number | null
+          hotel_status?: string | null
+          id?: string
+          reason?: string
+          related_company?: string | null
+          responsible_name?: string
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          air_company?: string | null
+          air_date?: string | null
+          air_route?: string | null
+          air_status?: string | null
+          air_value?: number | null
+          bus_company_line?: string | null
+          bus_date?: string | null
+          bus_status?: string | null
+          bus_value?: number | null
+          claim_id?: string
+          created_at?: string
+          destination_city?: string
+          end_date?: string | null
+          hotel_daily_rate?: number | null
+          hotel_name?: string | null
+          hotel_qty?: number | null
+          hotel_status?: string | null
+          id?: string
+          reason?: string
+          related_company?: string | null
+          responsible_name?: string
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'travel_plans_claim_id_fkey'
+            columns: ['claim_id']
+            isOneToOne: false
+            referencedRelation: 'claims'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

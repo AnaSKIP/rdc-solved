@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { PasswordConfirmModal } from '@/components/PasswordConfirmModal'
+import { BRLInput } from '@/components/BRLInput'
 import { Button } from '@/components/ui/button'
-import { DollarSign, Plus, Trash2, Percent, Table as TableIcon } from 'lucide-react'
+import { Banknote, Plus, Trash2, Percent, Table as TableIcon } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -14,6 +15,7 @@ import {
 import { useKanbanStore } from '@/stores/useKanbanStore'
 import useCaseStore from '@/stores/useCaseStore'
 import { useToast } from '@/hooks/use-toast'
+import { formatBRL } from '@/lib/utils'
 import {
   Table,
   TableBody,
@@ -29,12 +31,14 @@ export function FinancialPanel() {
   const { toast } = useToast()
 
   const [totalValue, setTotalValue] = useState(selectedClaim?.financialTotalValue || 0)
-  const [fixedValue, setFixedValue] = useState(selectedClaim?.financialFixedValue || 0)
+  const [fixedValue, setFixedValue] = useState((selectedClaim as any)?.financialFixedValue || 0)
   const [commissionValue, setCommissionValue] = useState(
-    selectedClaim?.financialCommissionValue || 0,
+    (selectedClaim as any)?.financialCommissionValue || 0,
   )
   const [probability, setProbability] = useState(selectedClaim?.probability || 0)
-  const [installments, setInstallments] = useState<any[]>(selectedClaim?.installments || [])
+  const [installments, setInstallments] = useState<any[]>(
+    (selectedClaim as any)?.installments || [],
+  )
   const [deleteData, setDeleteData] = useState<{
     type: 'installment' | 'field'
     id?: string
@@ -44,10 +48,10 @@ export function FinancialPanel() {
 
   useEffect(() => {
     setTotalValue(selectedClaim?.financialTotalValue || 0)
-    setFixedValue(selectedClaim?.financialFixedValue || 0)
-    setCommissionValue(selectedClaim?.financialCommissionValue || 0)
+    setFixedValue((selectedClaim as any)?.financialFixedValue || 0)
+    setCommissionValue((selectedClaim as any)?.financialCommissionValue || 0)
     setProbability(selectedClaim?.probability || 0)
-    setInstallments(selectedClaim?.installments || [])
+    setInstallments((selectedClaim as any)?.installments || [])
   }, [selectedClaim])
 
   const handleSave = (updates: any, msg?: string) => {
@@ -64,7 +68,6 @@ export function FinancialPanel() {
     ]
     setInstallments(newInstallments)
     handleSave({ installments: newInstallments }, 'Parcela adicionada')
-
     if (selectedClaim?.id) {
       addActivity({
         claimId: selectedClaim.id,
@@ -80,7 +83,6 @@ export function FinancialPanel() {
 
   const handleConfirmDelete = () => {
     if (!deleteData) return
-
     if (deleteData.type === 'installment' && deleteData.id) {
       const newInstallments = installments.filter((i) => i.id !== deleteData.id)
       setInstallments(newInstallments)
@@ -88,7 +90,6 @@ export function FinancialPanel() {
     } else if (deleteData.type === 'field' && deleteData.field) {
       handleSave({ [deleteData.field]: deleteData.val })
     }
-
     setDeleteData(null)
   }
 
@@ -96,7 +97,6 @@ export function FinancialPanel() {
     const newInstallments = installments.map((i) => (i.id === id ? { ...i, [field]: value } : i))
     setInstallments(newInstallments)
     handleSave({ installments: newInstallments })
-
     if (field === 'status' && value === 'Pago' && selectedClaim?.id) {
       addActivity({
         claimId: selectedClaim.id,
@@ -105,6 +105,13 @@ export function FinancialPanel() {
       })
     }
   }
+
+  const totalPaid = installments
+    .filter((i) => i.status === 'Pago')
+    .reduce((s, i) => s + (i.amount || 0), 0)
+  const totalPending = installments
+    .filter((i) => i.status !== 'Pago')
+    .reduce((s, i) => s + (i.amount || 0), 0)
 
   return (
     <div className="bg-emerald-50/30 p-5 rounded-md border border-emerald-100 mt-6 shadow-sm animate-in fade-in duration-300">
@@ -116,7 +123,7 @@ export function FinancialPanel() {
         description="Você está tentando alterar ou remover um registro financeiro. Por favor, informe sua senha para autorizar esta operação."
       />
       <div className="flex items-center gap-2 mb-5 border-b border-emerald-100 pb-2">
-        <DollarSign className="w-5 h-5 text-emerald-600" />
+        <Banknote className="w-5 h-5 text-emerald-600" />
         <h3 className="font-bold text-emerald-900 uppercase text-sm tracking-wider">
           Módulo Financeiro & Parcelas
         </h3>
@@ -124,52 +131,37 @@ export function FinancialPanel() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="space-y-1.5">
-          <Label className="text-[11px] font-semibold text-emerald-800 uppercase tracking-wider flex items-center gap-1">
+          <Label className="text-[11px] font-semibold text-emerald-800 uppercase tracking-wider">
             Total Acordo
           </Label>
-          <div className="relative">
-            <DollarSign className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-            <Input
-              type="number"
-              value={totalValue || ''}
-              onChange={(e) => setTotalValue(Number(e.target.value))}
-              onBlur={() => handleSave({ financialTotalValue: totalValue })}
-              className="pl-8 h-9 bg-white border-emerald-200"
-              placeholder="0.00"
-            />
-          </div>
+          <BRLInput
+            value={totalValue}
+            onChange={setTotalValue}
+            onBlur={(v) => handleSave({ financialTotalValue: v })}
+            inputClassName="h-9 bg-white border-emerald-200"
+          />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider flex items-center gap-1">
+          <Label className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
             Valor Fixo
           </Label>
-          <div className="relative">
-            <DollarSign className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-            <Input
-              type="number"
-              value={fixedValue || ''}
-              onChange={(e) => setFixedValue(Number(e.target.value))}
-              onBlur={() => handleSave({ financialFixedValue: fixedValue })}
-              className="pl-8 h-9 bg-white border-gray-200"
-              placeholder="0.00"
-            />
-          </div>
+          <BRLInput
+            value={fixedValue}
+            onChange={setFixedValue}
+            onBlur={(v) => handleSave({ financialFixedValue: v })}
+            inputClassName="h-9 bg-white border-gray-200"
+          />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider flex items-center gap-1">
+          <Label className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
             Comissão Extra
           </Label>
-          <div className="relative">
-            <DollarSign className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-            <Input
-              type="number"
-              value={commissionValue || ''}
-              onChange={(e) => setCommissionValue(Number(e.target.value))}
-              onBlur={() => handleSave({ financialCommissionValue: commissionValue })}
-              className="pl-8 h-9 bg-white border-gray-200"
-              placeholder="0.00"
-            />
-          </div>
+          <BRLInput
+            value={commissionValue}
+            onChange={setCommissionValue}
+            onBlur={(v) => handleSave({ financialCommissionValue: v })}
+            inputClassName="h-9 bg-white border-gray-200"
+          />
         </div>
         <div className="space-y-1.5">
           <Label className="text-[11px] font-semibold text-blue-800 uppercase tracking-wider flex items-center gap-1">
@@ -238,12 +230,10 @@ export function FinancialPanel() {
                     />
                   </TableCell>
                   <TableCell>
-                    <Input
-                      type="number"
-                      value={inst.amount || ''}
-                      onChange={(e) => updateInstallment(inst.id, 'amount', Number(e.target.value))}
-                      className="h-8 text-xs border-gray-200 bg-gray-50 group-hover:bg-white"
-                      placeholder="0.00"
+                    <BRLInput
+                      value={inst.amount || 0}
+                      onChange={(v) => updateInstallment(inst.id, 'amount', v)}
+                      inputClassName="h-8 text-xs border-gray-200 bg-gray-50 group-hover:bg-white"
                     />
                   </TableCell>
                   <TableCell>
@@ -283,6 +273,19 @@ export function FinancialPanel() {
             </TableBody>
           </Table>
         </div>
+
+        {installments.length > 0 && (
+          <div className="flex flex-wrap gap-4 text-xs pt-1">
+            <span className="text-gray-600">
+              Total Pago:{' '}
+              <strong className="text-emerald-700">{formatBRL(totalPaid) || 'R$ 0,00'}</strong>
+            </span>
+            <span className="text-gray-600">
+              Total Pendente:{' '}
+              <strong className="text-orange-600">{formatBRL(totalPending) || 'R$ 0,00'}</strong>
+            </span>
+          </div>
+        )}
       </div>
     </div>
   )

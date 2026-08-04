@@ -4,7 +4,6 @@ import useCaseStore from '@/stores/useCaseStore'
 import {
   Briefcase,
   Inbox,
-  CheckCircle,
   RefreshCcw,
   Scale,
   Users,
@@ -14,6 +13,7 @@ import {
   Settings,
   Terminal,
   ShieldAlert,
+  Plane,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 
@@ -36,11 +36,11 @@ const MODULES = [
   },
   {
     id: 'vistorias',
-    title: 'Vistorias',
-    description: 'Agendamentos e laudos de constatação',
-    icon: CheckCircle,
+    title: 'Planejamento de Viagens',
+    description: 'Gestão de viagens e hospedagens para vistorias',
+    icon: Plane,
     url: '/vistorias',
-    color: 'bg-emerald-500',
+    color: 'bg-green-600',
   },
   {
     id: 'repescagem',
@@ -145,7 +145,7 @@ export default function Index() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {allowedModules.map((mod) => (
-              <Link key={mod.id} to={mod.url} className="block group h-full">
+              <Link key={mod.title} to={mod.url} className="block group h-full">
                 <Card className="h-full bg-white hover:shadow-xl hover:shadow-blue-900/5 transition-all duration-300 border-gray-200 hover:border-blue-300 group-hover:-translate-y-1 overflow-hidden relative">
                   <div
                     className={`absolute top-0 left-0 w-1 h-full ${mod.color} opacity-0 group-hover:opacity-100 transition-opacity`}

@@ -40,3 +40,23 @@ export function formatRaDisplay(raString?: string | null, cnpjStr?: string | nul
 
   return { ra: baseRa, cnpj }
 }
+
+export function formatBRL(value: number | null | undefined): string {
+  if (value === null || value === undefined || value === 0 || isNaN(value)) return ''
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value)
+}
+
+export function parseBRL(value: string): number {
+  if (!value) return 0
+  let cleaned = value.replace(/R\$\s?/g, '').trim()
+  if (cleaned.includes(',') && cleaned.includes('.')) {
+    cleaned = cleaned.replace(/\./g, '').replace(',', '.')
+  } else if (cleaned.includes(',')) {
+    cleaned = cleaned.replace(',', '.')
+  }
+  const num = parseFloat(cleaned)
+  return isNaN(num) ? 0 : num
+}
