@@ -48,6 +48,16 @@ import useContactStore from '@/stores/useContactStore'
 import { useState, useEffect } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import { cn, formatRaDisplay } from '@/lib/utils'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 const Field = ({
   label,
@@ -162,8 +172,12 @@ export function CaseForm() {
   )
 
   const [isEnriching, setIsEnriching] = useState(false)
+  const [causerAno, setCauserAno] = useState(
+    selectedClaim?.causerAno || selectedClaim?.causer_ano || '',
+  )
+  const [showEnrichConfirm, setShowEnrichConfirm] = useState(false)
 
-  const handleEnriquecer = async () => {
+  const executeEnrichment = async () => {
     setIsEnriching(true)
     try {
       let extractedData: any = {}
@@ -207,41 +221,46 @@ export function CaseForm() {
       }
 
       const updates: any = {}
-      if (extractedData.causerName && !causerName) {
+      if (extractedData.causerName) {
         updates.causer_name = extractedData.causerName
         setCauserName(extractedData.causerName)
       }
-      if (extractedData.causerDocument && !causerDocument) {
+      if (extractedData.causerDocument) {
         updates.causer_document = extractedData.causerDocument
         setCauserDocument(extractedData.causerDocument)
       }
       const extractedPhone = extractedData.causerPhone || extractedData.causer_whatsapp
-      if (extractedPhone && !causerPhone) {
+      if (extractedPhone) {
         updates.phone = extractedPhone
         updates.causer_whatsapp = extractedPhone
         setCauserPhone(extractedPhone)
       }
-      if (extractedData.marcaModelo && !tipoVeiculoCausador) {
+      if (extractedData.marcaModelo) {
         updates.tipo_veiculo_causador = extractedData.marcaModelo
+        updates.causer_modelo = extractedData.marcaModelo
         setTipoVeiculoCausador(extractedData.marcaModelo)
       }
-      if (extractedData.placaCausador && !placaCausador) {
+      if (extractedData.anoCausador) {
+        updates.causer_ano = extractedData.anoCausador
+        setCauserAno(extractedData.anoCausador)
+      }
+      if (extractedData.placaCausador) {
         updates.placa_causador = extractedData.placaCausador
         setPlacaCausador(extractedData.placaCausador)
       }
-      if (extractedData.dinamica && !dinamicaAcidente) {
+      if (extractedData.dinamica) {
         updates.relato_acidente = extractedData.dinamica
         setDinamicaAcidente(extractedData.dinamica)
       }
-      if (extractedData.causerEndereco && !causerEndereco) {
+      if (extractedData.causerEndereco) {
         updates.causer_endereco = extractedData.causerEndereco
         setCauserEndereco(extractedData.causerEndereco)
       }
-      if (extractedData.proprietarioNome && !proprietarioNome) {
+      if (extractedData.proprietarioNome) {
         updates.proprietario_veiculo_causador = extractedData.proprietarioNome
         setProprietarioNome(extractedData.proprietarioNome)
       }
-      if (extractedData.proprietarioTelefone && !proprietarioTelefone) {
+      if (extractedData.proprietarioTelefone) {
         updates.proprietario_telefone = extractedData.proprietarioTelefone
         setProprietarioTelefone(extractedData.proprietarioTelefone)
       }
@@ -260,37 +279,29 @@ export function CaseForm() {
         )
 
         if (externalData && externalData.success && externalData.data) {
-          if (externalData.data.causerName && !causerName && !updates.causer_name) {
+          if (externalData.data.causerName) {
             updates.causer_name = externalData.data.causerName
             setCauserName(externalData.data.causerName)
           }
-          if (externalData.data.causerDocument && !causerDocument && !updates.causer_document) {
+          if (externalData.data.causerDocument) {
             updates.causer_document = externalData.data.causerDocument
             setCauserDocument(externalData.data.causerDocument)
           }
           const externalPhone = externalData.data.causerPhone || externalData.data.causer_whatsapp
-          if (externalPhone && !causerPhone && !updates.phone) {
+          if (externalPhone) {
             updates.phone = externalPhone
             updates.causer_whatsapp = externalPhone
             setCauserPhone(externalPhone)
           }
-          if (externalData.data.causerEndereco && !causerEndereco && !updates.causer_endereco) {
+          if (externalData.data.causerEndereco) {
             updates.causer_endereco = externalData.data.causerEndereco
             setCauserEndereco(externalData.data.causerEndereco)
           }
-          if (
-            externalData.data.proprietarioNome &&
-            !proprietarioNome &&
-            !updates.proprietario_veiculo_causador
-          ) {
+          if (externalData.data.proprietarioNome) {
             updates.proprietario_veiculo_causador = externalData.data.proprietarioNome
             setProprietarioNome(externalData.data.proprietarioNome)
           }
-          if (
-            externalData.data.proprietarioTelefone &&
-            !proprietarioTelefone &&
-            !updates.proprietario_telefone
-          ) {
+          if (externalData.data.proprietarioTelefone) {
             updates.proprietario_telefone = externalData.data.proprietarioTelefone
             setProprietarioTelefone(externalData.data.proprietarioTelefone)
           }
@@ -362,6 +373,10 @@ export function CaseForm() {
     }
   }
 
+  const handleEnrichClick = () => {
+    setShowEnrichConfirm(true)
+  }
+
   useEffect(() => {
     setPlacaOnibus(selectedClaim?.placaOnibus || '')
     setPrefixoOnibus(selectedClaim?.prefixoOnibus || '')
@@ -377,6 +392,7 @@ export function CaseForm() {
     setCauserPhone(selectedClaim?.causerPhone || '')
     setCauserDocument(selectedClaim?.causerDocument || '')
     setTipoVeiculoCausador(selectedClaim?.tipoVeiculoCausador || '')
+    setCauserAno(selectedClaim?.causerAno || selectedClaim?.causer_ano || '')
 
     setCauserEndereco(selectedClaim?.causerEndereco || selectedClaim?.causer_endereco || '')
     setProprietarioNome(
@@ -740,7 +756,7 @@ export function CaseForm() {
                 )}
                 <Button
                   size="sm"
-                  onClick={handleEnriquecer}
+                  onClick={handleEnrichClick}
                   disabled={isEnriching}
                   className="h-7 text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
                 >
@@ -812,10 +828,30 @@ export function CaseForm() {
                   value={tipoVeiculoCausador}
                   onChange={(e) => setTipoVeiculoCausador(e.target.value.toUpperCase())}
                   onBlur={() =>
-                    handleSaveData({ tipoVeiculoCausador }, 'Marca / Modelo atualizado')
+                    handleSaveData(
+                      { tipoVeiculoCausador, causer_modelo: tipoVeiculoCausador },
+                      'Marca / Modelo atualizado',
+                    )
                   }
                   className="h-8 text-sm bg-white flex-1"
                   placeholder="Ex: FORD / ECOSPORT"
+                />
+              </div>
+              <div className="flex items-center gap-4">
+                <Label className="w-32 text-xs text-gray-500 font-bold uppercase shrink-0">
+                  Ano Causador
+                </Label>
+                <Input
+                  value={causerAno}
+                  onChange={(e) => setCauserAno(e.target.value)}
+                  onBlur={() =>
+                    handleSaveData(
+                      { causerAno, causer_ano: causerAno },
+                      'Ano do causador atualizado',
+                    )
+                  }
+                  className="h-8 text-sm bg-white flex-1"
+                  placeholder="Ex: 2020"
                 />
               </div>
               <div className="flex items-center gap-4">
@@ -1193,6 +1229,29 @@ export function CaseForm() {
           </div>
         </div>
       </div>
+
+      <AlertDialog open={showEnrichConfirm} onOpenChange={setShowEnrichConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Enriquecimento</AlertDialogTitle>
+            <AlertDialogDescription>
+              Os dados do PDF irão substituir todos os campos atuais (nome, documento, placa,
+              telefone, endereço, proprietário, etc.). Deseja continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowEnrichConfirm(false)
+                executeEnrichment()
+              }}
+            >
+              Continuar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
